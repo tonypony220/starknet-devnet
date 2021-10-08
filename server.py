@@ -5,7 +5,6 @@ from starkware.starknet.testing.contract import StarknetContract
 from starkware.starknet.services.api.gateway.transaction import InvokeFunction, Transaction
 from starkware.starknet.compiler.compile import get_selector_from_name
 from starkware.starkware_utils.error_handling import StarkErrorCode
-from starkware.starknet.definitions.transaction_type import TransactionType
 
 app = Flask(__name__)
 address2contract = {}
@@ -86,7 +85,7 @@ async def add_transaction():
     transaction = {
         "block_id": new_id,
         "block_number": new_id,
-        "status": StarkErrorCode.TRANSACTION_PENDING.name,
+        "status": "PENDING", # TODO hardcoded
         "transaction": {
             "contract_address": hex(transaction.contract_address),
             "type": tx_type
@@ -111,11 +110,12 @@ async def call_contract():
     # TODO the original client may specify blockId, what to do with it?
     raw_data = request.get_data()
     call_specifications = InvokeFunction.loads(raw_data)
-    return await call_or_invoke("call",
+    result_dict = await call_or_invoke("call",
         contract_address=call_specifications.contract_address,
         entry_point_selector=call_specifications.entry_point_selector,
         calldata=call_specifications.calldata
     )
+    return jsonify(result_dict)
 
 @app.route("/feeder_gateway/get_block", methods=["GET"])
 def get_block():
@@ -148,7 +148,7 @@ def get_storage_at():
 def get_transaction_status():
     transaction_id = request.args.get("transactionId", type=int)
     tx_status = (
-        StarkErrorCode.TRANSACTION_PENDING.name
+        "PENDING"
         if is_transaction_id_legal(transaction_id)
         else "NOT_RECEIVED" # TODO hardcoded? find enum
     )
@@ -168,4 +168,4 @@ def get_transaction():
         })
 
 if __name__ == "__main__":
-    app.run()
+    app.run(host="0.0.0.0")
