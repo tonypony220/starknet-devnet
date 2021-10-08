@@ -15,9 +15,9 @@ starknet invoke --function increase_balance --inputs 10 20 --address $address --
 RESULT=$(starknet call --function get_balance --address $address --abi $ABI_PATH --feeder_gateway_url=$FEEDER_GATEWAY_URL)
 
 echo
-if [ $RESULT == 30 ]; then
+if [ "$RESULT" == 30 ]; then
     echo "Success!"
 else
-    echo "Test failed!"
+    echo "Test failed! Received result: $RESULT"
     exit 1
 fi
