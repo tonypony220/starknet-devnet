@@ -6,7 +6,6 @@ python server.py &
 source .env
 
 output=$(starknet deploy --contract $CONTRACT_PATH --gateway_url=$GATEWAY_URL)
-echo $output
 deploy_tx_id=$(echo $output | sed -r "s/.*Transaction ID: (\w*).*/\1/")
 address=$(echo $output | sed -r "s/.*Contract address: (\w*).*/\1/")
 echo "Address: $address"

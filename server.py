@@ -88,7 +88,7 @@ async def add_transaction():
         "block_number": new_id,
         "status": StarkErrorCode.TRANSACTION_PENDING.name,
         "transaction": {
-            "contract_address": ...,
+            "contract_address": hex(transaction.contract_address),
             "type": tx_type
         },
         "transaction_id": new_id,
