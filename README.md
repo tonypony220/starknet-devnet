@@ -12,7 +12,14 @@ Currently proven to work with cairo-lang 0.4.0
 
 ## Run
 ```
-$ python server.py
+usage: python server.py [-h] [--host HOST] [--port PORT]
+
+Run a local instance of Starknet devnet
+
+optional arguments:
+  -h, --help   show this help message and exit
+  --host HOST  address to listen at; defaults to localhost
+  --port PORT  the port to listen at; defaults to 5000
 ```
 
 ## Test
@@ -20,5 +27,5 @@ $ python server.py
 $ ./test.sh
 ```
 
-## Use
-Use this devnet like you would use the official Starknet [alpha network](https://www.cairo-lang.org/docs/hello_starknet/amm.html?highlight=alpha#interaction-examples).
+## Interaction
+Interact with this devnet as you would with the official Starknet [alpha network](https://www.cairo-lang.org/docs/hello_starknet/amm.html?highlight=alpha#interaction-examples).
