@@ -5,6 +5,7 @@ from starkware.starknet.testing.contract import StarknetContract
 from starkware.starknet.services.api.gateway.transaction import InvokeFunction, Transaction
 from starkware.starknet.compiler.compile import get_selector_from_name
 from starkware.starkware_utils.error_handling import StarkErrorCode
+from util import TxStatus
 
 app = Flask(__name__)
 address2contract = {}
@@ -85,7 +86,7 @@ async def add_transaction():
     transaction = {
         "block_id": new_id,
         "block_number": new_id,
-        "status": "PENDING", # TODO hardcoded
+        "status": TxStatus.PENDING.name,
         "transaction": {
             "contract_address": hex(transaction.contract_address),
             "type": tx_type
@@ -147,9 +148,9 @@ def get_storage_at():
 def get_transaction_status():
     transaction_id = request.args.get("transactionId", type=int)
     tx_status = (
-        "PENDING"
+        TxStatus.PENDING.name
         if is_transaction_id_legal(transaction_id)
-        else "NOT_RECEIVED" # TODO hardcoded? find enum
+        else TxStatus.NOT_RECEIVED.name
     )
     return jsonify({
         "tx_status": tx_status
@@ -162,7 +163,7 @@ def get_transaction():
         return jsonify(transactions[transaction_id])
     else:
         return jsonify({
-            "status": "NOT_RECEIVED", # TODO hardcoded? find enum
+            "status": TxStatus.NOT_RECEIVED.name,
             "transaction_id": transaction_id
         })
 
