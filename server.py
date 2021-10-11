@@ -21,10 +21,10 @@ class StarknetWrapper:
 
 starknet_wrapper = StarknetWrapper()
 
-# TODO is this a necessary endpoint
 @app.route("/is_alive", methods=["GET"])
+@app.route("/gateway/is_alive", methods=["GET"])
+@app.route("/feeder_gateway/is_alive", methods=["GET"])
 def is_alive():
-    # TODO should each gateway (feeder and not) have this endpoint?
     return "Alive!!!"
 
 async def deploy(contract_definition: ContractDefinition, contract_address: str):
@@ -107,7 +107,6 @@ def get_contract_addresses():
 
 @app.route("/feeder_gateway/call_contract", methods=["POST"])
 async def call_contract():
-    # TODO the original client may specify blockId, what to do with it?
     raw_data = request.get_data()
     call_specifications = InvokeFunction.loads(raw_data)
     result_dict = await call_or_invoke("call",
