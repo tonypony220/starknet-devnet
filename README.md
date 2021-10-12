@@ -1,14 +1,15 @@
 ## Introduction
 A Flask wrapper of Starknet dummy network. Similar in purpose to Ganache.
 
-## Requirements
-Requires Python and pip.
+## Install
+
+This is an early stage of the project, so you'll need to clone this repo and install manually.
 
 Run (preferably in a virtual environment):
 ```
-pip install Flask[async] cairo-lang==0.4.0
+pip install Flask[async] cairo-lang==0.4.2
 ```
-Currently proven to work with cairo-lang 0.4.0
+
 
 ## Run
 ```
@@ -29,3 +30,6 @@ $ ./test.sh
 
 ## Interaction
 Interact with this devnet as you would with the official Starknet [alpha network](https://www.cairo-lang.org/docs/hello_starknet/amm.html?highlight=alpha#interaction-examples).
+
+## Hardhat integration
+If you're using [the Hardhat plugin](https://github.com/Shard-Labs/starknet-hardhat-plugin), see [here](https://github.com/Shard-Labs/starknet-hardhat-plugin#testing-network) on how to edit its config file to integrate this devnet.
