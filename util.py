@@ -6,13 +6,13 @@ class TxStatus(Enum):
     NOT_RECEIVED = auto()
 
 
-DEFAULT_HOST = "localhost"
+DEFAULT_HOST = "0.0.0.0"
 DEFAULT_PORT = 5000
 def parse_args():
     parser = argparse.ArgumentParser(description="Run a local instance of Starknet devnet")
     parser.add_argument(
         "--host",
-        help=f"address to listen at; defaults to {DEFAULT_HOST}", 
+        help=f"the address to listen at; defaults to {DEFAULT_HOST} (use the address the program outputs on start)",
         default=DEFAULT_HOST
     )
     parser.add_argument(
