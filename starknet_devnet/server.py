@@ -5,7 +5,7 @@ from starkware.starknet.testing.contract import StarknetContract
 from starkware.starknet.services.api.gateway.transaction import InvokeFunction, Transaction
 from starkware.starknet.compiler.compile import get_selector_from_name
 from starkware.starkware_utils.error_handling import StarkErrorCode
-from util import TxStatus, parse_args
+from .util import TxStatus, parse_args
 
 app = Flask(__name__)
 address2contract = {}
@@ -169,6 +169,9 @@ def get_transaction():
             "transaction_id": transaction_id
         })
 
-if __name__ == "__main__":
+def main():
     args = parse_args()
     app.run(**vars(args))
+
+if __name__ == "__main__":
+    main()

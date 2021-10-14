@@ -3,16 +3,11 @@ A Flask wrapper of Starknet dummy network. Similar in purpose to Ganache.
 
 ## Install
 
-This is an early stage of the project, so you'll need to clone this repo and install manually.
-
-Run (preferably in a virtual environment):
-```
-pip install Flask[async] cairo-lang==0.4.2
-```
+pip install starknet-devnet
 
 ## Run
 ```
-usage: python server.py [-h] [--host HOST] [--port PORT]
+usage: starknet-devnet [-h] [--host HOST] [--port PORT]
 
 Run a local instance of Starknet devnet
 
@@ -24,7 +19,7 @@ optional arguments:
 
 ## Important notes
 - `host`:
-  - Currently, specifying `--host=localhost` or `--host=127.0.0.1` will not work with the hardhat plugin because of Docker networking issues which are being fixed.
+  - Currently, specifying `--host=localhost` or `--host=127.0.0.1` will not work with [the Hardhat plugin](#hardhat-integration) because of Docker networking issues which are being fixed.
   - Rely on the default behavior of `--host=0.0.0.0`, but keep in mind that this will use your local IP address (printed on program startup), making it accessible by others on the network.
 - Function arguments:
   - You will NOT be able to pass or receive values of type other than `felt` and `felt*`.

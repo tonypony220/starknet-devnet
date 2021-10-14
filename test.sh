@@ -1,7 +1,7 @@
 #!/bin/bash
 
 trap 'kill $(jobs -p)' EXIT
-python server.py &
+poetry run starknet-devnet &
 
 source .env
 
