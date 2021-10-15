@@ -21,7 +21,7 @@ optional arguments:
 - `host`:
   - Currently, specifying `--host=localhost` or `--host=127.0.0.1` will not work with [the Hardhat plugin](#hardhat-integration) because of Docker networking issues which are being fixed.
   - Rely on the default behavior of `--host=0.0.0.0`, but keep in mind that this will use your local IP address (printed on program startup), making it accessible by others on the network.
-- Function arguments:
+- Types in call/invoke:
   - You will NOT be able to pass or receive values of type other than `felt` and `felt*`.
 
 ## Test
