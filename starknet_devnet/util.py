@@ -6,7 +6,7 @@ class TxStatus(Enum):
     NOT_RECEIVED = auto()
 
 
-DEFAULT_HOST = "0.0.0.0"
+DEFAULT_HOST = "localhost"
 DEFAULT_PORT = 5000
 def parse_args():
     parser = argparse.ArgumentParser(description="Run a local instance of Starknet devnet")

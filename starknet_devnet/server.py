@@ -106,7 +106,7 @@ async def add_transaction():
 
 @app.route("/feeder_gateway/get_contract_addresses", methods=["GET"])
 def get_contract_addresses():
-    return "No can do", 400
+    return "Not implemented", 501
 
 @app.route("/feeder_gateway/call_contract", methods=["POST"])
 async def call_contract():
