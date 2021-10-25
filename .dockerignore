@@ -1,0 +1,13 @@
+**/__pycache__/
+*.py[cod]
+.env
+**/dist/
+starknet-hardhat-example/
+
+.git
+.gitignore
+.env.example
+.circleci/
+scripts/
+Dockerfile
+.dockerignore

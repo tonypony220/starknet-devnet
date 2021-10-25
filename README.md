@@ -28,6 +28,24 @@ optional arguments:
   --port PORT  the port to listen at; defaults to 5000
 ```
 
+## Run - Docker
+This devnet is available as a Docker container ([shardlabs/starknet-devnet](https://hub.docker.com/repository/docker/shardlabs/starknet-devnet)):
+```text
+docker pull shardlabs/starknet-devnet
+```
+
+The server inside the container listens to the port 5000, which you need to publish to a desired `<PORT>`:
+```text
+docker run -it -p [HOST:]<PORT>:5000 shardlabs/starknet-devnet
+```
+E.g. if you want to use your host machine's `127.0.0.1:5000`, you need to run:
+```text
+docker run -it -p 127.0.0.1:5000:5000 shardlabs/starknet-devnet
+```
+You may ignore any address-related output logged on container startup (e.g. `Running on all addresses` or `Running on http://172.17.0.2:5000`). What you will use is what you specified with the `-p` flag.
+
+If you don't specify the `HOST` part, the server will indeed be available on all of your host machine's addresses (localhost, local network IP, etc.), which may present a security issue if you don't want anyone from the local network to access your devnet.
+
 ## Important notes
 - Types in call/invoke:
   - You will NOT be able to pass or receive values of type other than `felt` and `felt*`.
@@ -48,11 +66,21 @@ poetry run starknet-devnet
 ```
 
 ## Development - Test
-`test.sh` contains a basic test to check if the devnet is working properly.
+When running tests locally, do it from the project root. Be sure to create an `.env` file, modeled after `.env.example`.
 
-Create `.env` which will hold variables required by the test. See `.env.example` for help.
+Setup an example project by running:
 ```text
-$ ./test.sh
+./scripts/setup-example.sh
+```
+
+To see if the devnet can interact with starknet CLI commands, run:
+```text
+./scripts/test-cli.sh
+```
+
+To see if the devnet can interact with the plugin, run:
+```text
+./scripts/test-plugin.sh
 ```
 
 ## Development - Build
