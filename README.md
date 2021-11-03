@@ -35,7 +35,7 @@ This devnet is available as a Docker container ([shardlabs/starknet-devnet](http
 docker pull shardlabs/starknet-devnet
 ```
 
-The server inside the container listens to the port 5000, which you need to publish to a desired `<PORT>`:
+The server inside the container listens to the port 5000, which you need to publish to a desired `<PORT>` on your host machine:
 ```text
 docker run -it -p [HOST:]<PORT>:5000 shardlabs/starknet-devnet
 ```
@@ -47,15 +47,10 @@ You may ignore any address-related output logged on container startup (e.g. `Run
 
 If you don't specify the `HOST` part, the server will indeed be available on all of your host machine's addresses (localhost, local network IP, etc.), which may present a security issue if you don't want anyone from the local network to access your devnet.
 
-## Important notes
-- Types in call/invoke:
-  - You will NOT be able to pass or receive values of type other than `felt` and `felt*`.
-
 ## Interaction
 Interact with this devnet as you would with the official Starknet [alpha network](https://www.cairo-lang.org/docs/hello_starknet/amm.html?highlight=alpha#interaction-examples).
 
 ## Hardhat integration
-- Be sure to read [Important notes](#important-notes).
 - If you're using [the Hardhat plugin](https://github.com/Shard-Labs/starknet-hardhat-plugin), see [here](https://github.com/Shard-Labs/starknet-hardhat-plugin#testing-network) on how to edit its config file to integrate this devnet.
 
 ## Development - Prerequisite
