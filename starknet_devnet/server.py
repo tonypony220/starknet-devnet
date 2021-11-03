@@ -10,6 +10,7 @@ from .util import TxStatus, parse_args
 
 app = Flask(__name__)
 address2contract = {}
+address2types = {}
 transactions = []
 
 class StarknetWrapper:
@@ -29,11 +30,12 @@ starknet_wrapper = StarknetWrapper()
 def is_alive():
     return "Alive!!!"
 
-async def deploy(contract_definition: ContractDefinition, contract_address: str):
+async def deploy(contract_definition: ContractDefinition):
     starknet = await starknet_wrapper.get_starknet()
-    contract = await starknet.deploy(contract_def=contract_definition, contract_address=contract_address)
-    address2contract[contract.contract_address] = contract
-    return {}
+    contract = await starknet.deploy(contract_def=contract_definition)
+    hex_address = hex(contract.contract_address)
+    address2contract[hex_address] = contract
+    return hex_address, {}
 
 def attempt_hex(x):
     try:
@@ -42,7 +44,26 @@ def attempt_hex(x):
         pass
     return x
 
-def adapt_calldata(calldata, expected_inputs):
+def generate_complex(calldata, calldata_i, input_type, types):
+    if input_type == "felt":
+        return calldata[calldata_i], calldata_i + 1
+
+    arr = []
+    if input_type[0] == "(" and input_type[-1] == ")":
+        members = input_type[1:-1].split(", ")
+    else:
+        if input_type not in types:
+            raise ValueError(f"Unsupported type: {input_type}")
+        struct = types[input_type]
+        members = [x["type"] for x in struct["members"]]
+
+    for member in members:
+        generated_complex, calldata_i = generate_complex(calldata, calldata_i, member, types)
+        arr.append(generated_complex)
+
+    return tuple(arr), calldata_i
+
+def adapt_calldata(calldata, expected_inputs, types):
     last_name = None
     last_value = None
     calldata_i = 0
@@ -70,18 +91,32 @@ def adapt_calldata(calldata, expected_inputs):
         elif input_type == "felt":
             adapted_calldata.append(input_value)
             calldata_i += 1
-        else:
-            # probably never reached if `getattr(contract, method_name)` is called before
-            abort(Response(f"Input type not supported:{input_type}.", 400))
+
+        else: # struct
+            try:
+                generated_complex, calldata_i = generate_complex(calldata, calldata_i, input_type, types)
+            except ValueError as e:
+                abort(Response(str(e), 400))
+            adapted_calldata.append(generated_complex)
 
         last_name = input_name
         last_value = input_value
 
     return adapted_calldata
 
+def adapt_output(received, ret):
+    if isinstance(received, list):
+        ret.append(hex(len(received)))
+    try:
+        for el in received:
+            adapt_output(el, ret)
+    except TypeError:
+        ret.append(hex(received))
+
 async def call_or_invoke(choice, contract_address: str, entry_point_selector: int, calldata: list):
+    contract_address = hex(contract_address)
     if (contract_address not in address2contract):
-        abort(Response(f"No contract at the provided address ({hex(contract_address)}).", 400))
+        abort(Response(f"No contract at the provided address ({contract_address}).", 400))
 
     contract: StarknetContract = address2contract[contract_address]
     for method_name in contract._abi_function_mapping:
@@ -97,30 +132,58 @@ async def call_or_invoke(choice, contract_address: str, entry_point_selector: in
     else:
         abort(Response(f"Illegal method selector: {entry_point_selector}.", 400))
 
-    adapted_calldata = adapt_calldata(calldata, function_abi["inputs"])
+    types = address2types[contract_address]
+    adapted_calldata = adapt_calldata(calldata, function_abi["inputs"], types)
 
     prepared = method(*adapted_calldata)
     called = getattr(prepared, choice)
-    result = await called()
+    executed = await called()
 
-    return { "result": [attempt_hex(r) for r in result] }
+    adapted_output = []
+    adapt_output(executed.result, adapted_output)
 
-def is_transaction_id_legal(transaction_id: int) -> bool:
-    return 0 <= transaction_id < len(transactions)
+    return { "result": adapted_output }
+
+def is_transaction_hash_legal(transaction_hash: int) -> bool:
+    return 0 <= transaction_hash < len(transactions)
+
+def store_types(contract_address: str, abi):
+    structs = [x for x in abi if x["type"] == "struct"]
+    type_dict = { struct["name"]: struct for struct in structs }
+    address2types[contract_address] = type_dict
+
+def store_transaction(contract_address: str, tx_type: str) -> str:
+    new_id = len(transactions)
+    hex_new_id = hex(new_id)
+    transaction = {
+        "block_id": new_id,
+        "block_number": new_id,
+        "status": TxStatus.PENDING.name,
+        "transaction": {
+            "contract_address": contract_address,
+            "type": tx_type
+        },
+        "transaction_hash": hex_new_id,
+        "transaction_index": 0 # always the first (and only) tx in the block
+    }
+    transactions.append(transaction)
+    return hex_new_id
 
 @app.route("/gateway/add_transaction", methods=["POST"])
 async def add_transaction():
     raw_data = request.get_data()
     transaction = Transaction.loads(raw_data)
+    # TODO transaction.calculate_hash()
 
     tx_type = transaction.tx_type.name
     result_dict = {}
     if tx_type == "DEPLOY":
-        result_dict = await deploy(
-            transaction.contract_definition,
-            transaction.contract_address
+        contract_address, result_dict = await deploy(
+            transaction.contract_definition
         )
+        store_types(contract_address, transaction.contract_definition.abi)
     elif tx_type == "INVOKE_FUNCTION":
+        contract_address = hex(transaction.contract_address)
         result_dict = await call_or_invoke("invoke",
             contract_address=transaction.contract_address,
             entry_point_selector=transaction.entry_point_selector,
@@ -129,23 +192,12 @@ async def add_transaction():
     else:
         abort(Response(f"Invalid tx_type: {tx_type}.", 400))
 
-    new_id = len(transactions)
-    transaction = {
-        "block_id": new_id,
-        "block_number": new_id,
-        "status": TxStatus.PENDING.name,
-        "transaction": {
-            "contract_address": hex(transaction.contract_address),
-            "type": tx_type
-        },
-        "transaction_id": new_id,
-        "transaction_index": 0 # always the first (and only) tx in the block
-    }
-    transactions.append(transaction)
+    transaction_hash = store_transaction(contract_address, tx_type)
 
     return jsonify({
         "code": StarkErrorCode.TRANSACTION_RECEIVED.name,
-        "tx_id": new_id,
+        "transaction_hash": transaction_hash,
+        "address": contract_address,
         **result_dict
     })
 
@@ -193,10 +245,10 @@ def get_storage_at():
 
 @app.route("/feeder_gateway/get_transaction_status", methods=["GET"])
 def get_transaction_status():
-    transaction_id = request.args.get("transactionId", type=int)
+    transaction_hash = request.args.get("transactionHash", type=lambda x: int(x, 16))
     tx_status = (
         TxStatus.PENDING.name
-        if is_transaction_id_legal(transaction_id)
+        if is_transaction_hash_legal(transaction_hash)
         else TxStatus.NOT_RECEIVED.name
     )
     return jsonify({
@@ -205,13 +257,13 @@ def get_transaction_status():
 
 @app.route("/feeder_gateway/get_transaction", methods=["GET"])
 def get_transaction():
-    transaction_id = request.args.get("transactionId", type=int)
-    if 0 <= transaction_id < len(transactions):
-        return jsonify(transactions[transaction_id])
+    transaction_hash = request.args.get("transactionHash", type=lambda x: int(x, 16))
+    if is_transaction_hash_legal(transaction_hash):
+        return jsonify(transactions[transaction_hash])
     else:
         return jsonify({
             "status": TxStatus.NOT_RECEIVED.name,
-            "transaction_id": transaction_id
+            "transaction_hash": transaction_hash
         })
 
 def main():
