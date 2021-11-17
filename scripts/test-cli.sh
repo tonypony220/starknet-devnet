@@ -16,7 +16,11 @@ FEEDER_GATEWAY_URL="http://$host:$port"
 CONTRACT_PATH=starknet-hardhat-example/starknet-artifacts/contracts/contract.cairo/contract.json
 ABI_PATH=starknet-hardhat-example/starknet-artifacts/contracts/contract.cairo/contract_abi.json
 
-output=$(starknet deploy --contract $CONTRACT_PATH --gateway_url=$GATEWAY_URL)
+output=$(starknet deploy \
+    --contract $CONTRACT_PATH \
+    --inputs 0 \
+    --gateway_url=$GATEWAY_URL
+)
 deploy_tx_hash=$(echo $output | sed -r "s/.*Transaction hash: (\w*).*/\1/")
 address=$(echo $output | sed -r "s/.*Contract address: (\w*).*/\1/")
 echo "Address: $address"
