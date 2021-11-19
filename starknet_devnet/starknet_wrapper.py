@@ -2,6 +2,7 @@ from starkware.starknet.testing.starknet import Starknet
 from starkware.starknet.testing.contract import StarknetContract
 from starkware.starknet.services.api.contract_definition import ContractDefinition
 from starkware.starknet.compiler.compile import get_selector_from_name
+from starkware.starknet.testing.state import CastableToAddressSalt
 from .util import StarknetDevnetException, TxStatus
 from .adapt import adapt_output, adapt_calldata
 from typing import List
@@ -31,6 +32,11 @@ class StarknetWrapper:
             self.starknet = await Starknet.empty()
         return self.starknet
 
+    async def get_state(self):
+        if not self.starknet:
+            self.starknet = await Starknet.empty()
+        return self.starknet.state.general_config
+
     def store_types(self, contract_address: str, abi):
         """
         Stores the types (structs) used in a contract.
@@ -41,7 +47,7 @@ class StarknetWrapper:
         type_dict = { struct["name"]: struct for struct in structs }
         self.address2types[contract_address] = type_dict
 
-    async def deploy(self, contract_definition: ContractDefinition, constructor_calldata):
+    async def deploy(self, contract_definition: ContractDefinition, contract_address_salt: CastableToAddressSalt, constructor_calldata: List[int]):
         """
         Deploys the contract whose definition is provided and returns deployment address in hex form.
         The other returned object is present to conform to a past version of call_or_invoke, but will be removed in future versions.
@@ -50,15 +56,14 @@ class StarknetWrapper:
         starknet = await self.get_starknet()
         contract = await starknet.deploy(
             contract_def=contract_definition,
-            constructor_calldata=constructor_calldata
+            constructor_calldata=constructor_calldata,
+            contract_address_salt=contract_address_salt
         )
 
         hex_address = hex(contract.contract_address)
         self.address2contract[hex_address] = contract
 
         self.store_types(hex_address, contract_definition.abi)
-
-        return hex_address
 
     async def call_or_invoke(self, choice: Choice, contract_address: str, entry_point_selector: int, calldata: list, signature: List[int]):
         contract_address = hex(contract_address)
@@ -103,8 +108,8 @@ class StarknetWrapper:
                 "tx_status": transaction["status"]
             }
 
-            if "block_id" in transaction:
-                ret["block_id"] = transaction["block_id"]
+            if "block_hash" in transaction:
+                ret["block_hash"] = transaction["block_hash"]
 
             return ret
 
@@ -121,42 +126,48 @@ class StarknetWrapper:
             "transaction_hash": transaction_hash
         }
 
-    def store_deploy_transaction(self, contract_address: str, constructor_calldata: List[str]) -> str:
+    def store_deploy_transaction(self, contract_address: str, calldata: List[str], salt: str, status: TxStatus, error_message=None) -> str:
         new_id = len(self.transactions)
         hex_new_id = hex(new_id)
         transaction = {
-            "block_id": new_id,
-            "block_number": new_id,
-            "status": TxStatus.PENDING.name,
-            "transaction": {
-                "constructor_calldata": constructor_calldata,
-                "contract_address": contract_address,
-                # contract_address_salt
-                "transaction_hash": hex_new_id,
-                "type": TransactionType.DEPLOY.name
-            },
-            "transaction_hash": hex_new_id,
-            "transaction_index": 0 # always the first (and only) tx in the block
-        }
-        self.transactions.append(transaction)
-        return hex_new_id
-
-    def store_invoke_transaction(self, contract_address: str, calldata: List[str], entry_point_selector: str, status: TxStatus, error_message=None) -> str:
-        new_id = len(self.transactions)
-        hex_new_id = hex(new_id)
-        transaction = {
-            "block_id": new_id,
+            "block_hash": hex_new_id,
             "block_number": new_id,
             "status": status.name,
             "transaction": {
-                "calldata": calldata, # TODO str(arg) for arg in calldata
+                "constructor_calldata": calldata,
+                "contract_address": contract_address,
+                "contract_address_salt": salt,
+                "transaction_hash": hex_new_id,
+                "type": TransactionType.DEPLOY.name
+            },
+            "transaction_index": 0 # always the first (and only) tx in the block
+        }
+
+        if status == TxStatus.REJECTED:
+            transaction["transaction_failure_reason"] = {
+                "code": StarknetErrorCode.TRANSACTION_FAILED.name,
+                "error_message": error_message,
+                "tx_id": new_id
+            }
+
+        self.transactions.append(transaction)
+        return hex_new_id
+
+    def store_invoke_transaction(self, contract_address: str, calldata: List[str], entry_point_selector: str, status: TxStatus, error_message: str=None) -> str:
+        new_id = len(self.transactions)
+        hex_new_id = hex(new_id)
+        transaction = {
+            "block_hash": hex_new_id,
+            "block_number": new_id,
+            "status": status.name,
+            "transaction": {
+                "calldata": [str(arg) for arg in calldata],
                 "contract_address": contract_address,
                 "entry_point_selector": entry_point_selector,
                 # entry_point_type
                 "transaction_hash": hex_new_id,
                 "type": TransactionType.INVOKE_FUNCTION.name,
             },
-            "transaction_hash": hex_new_id,
             "transaction_index": 0 # always the first (and only) tx in the block
         }
 

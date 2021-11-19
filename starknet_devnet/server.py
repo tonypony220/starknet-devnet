@@ -1,11 +1,13 @@
 from flask import Flask, request, jsonify, abort
 from flask.wrappers import Response
 from flask_cors import CORS
+from starkware.starknet.business_logic.internal_transaction import InternalDeploy
 from starkware.starknet.services.api.gateway.transaction import Deploy, InvokeFunction, Transaction
 from starkware.starknet.definitions.transaction_type import TransactionType
 from starkware.starkware_utils.error_handling import StarkErrorCode, StarkException
 from .util import TxStatus, parse_args
 from .starknet_wrapper import Choice, StarknetWrapper
+import os
 
 app = Flask(__name__)
 CORS(app)
@@ -24,29 +26,39 @@ async def add_transaction():
     Endpoint for accepting DEPLOY and INVOKE_FUNCTION transactions.
     """
 
+    state = await starknet_wrapper.get_state()
     raw_data = request.get_data()
     transaction = Transaction.loads(raw_data)
 
     tx_type = transaction.tx_type.name
     result_dict = {}
+    status = TxStatus.PENDING
+    error_message = None
 
     if tx_type == TransactionType.DEPLOY.name:
-        deploy_transaction: Deploy = transaction
+        deploy_transaction: InternalDeploy = InternalDeploy.from_external(transaction, state)
+        contract_address = hex(deploy_transaction.contract_address)
+        try:
+            await starknet_wrapper.deploy(
+                contract_definition=deploy_transaction.contract_definition,
+                contract_address_salt=deploy_transaction.contract_address_salt,
+                constructor_calldata=deploy_transaction.constructor_calldata
+            )
+        except StarkException as e:
+            error_message = e.message
+            status = TxStatus.REJECTED
 
-        contract_address = await starknet_wrapper.deploy(
-            contract_definition=deploy_transaction.contract_definition,
-            constructor_calldata=deploy_transaction.constructor_calldata
-        )
         transaction_hash = starknet_wrapper.store_deploy_transaction(
             contract_address=contract_address,
-            constructor_calldata=deploy_transaction.constructor_calldata
+            calldata=deploy_transaction.constructor_calldata,
+            salt=deploy_transaction.contract_address_salt,
+            status=status,
+            error_message=error_message
         )
 
     elif tx_type == TransactionType.INVOKE_FUNCTION.name:
         transaction: InvokeFunction = transaction
         contract_address = hex(transaction.contract_address)
-        status = TxStatus.PENDING
-        error_message = None
         try:
             result_dict = await starknet_wrapper.call_or_invoke(
                 Choice.INVOKE,
@@ -105,14 +117,14 @@ async def call_contract():
 
 @app.route("/feeder_gateway/get_block", methods=["GET"])
 def get_block():
-    block_id = request.args.get("blockId", type=int)
-    print(block_id)
+    block_hash = request.args.get("blockHash", type=int)
+    print(block_hash)
     return "Not implemented", 501
 
 @app.route("/feeder_gateway/get_code", methods=["GET"])
 def get_code():
-    block_id = request.args.get("blockId", type=int)
-    print(block_id)
+    block_hash = request.args.get("blockHash", type=int)
+    print(block_hash)
 
     contract_address = request.args.get("contractAddress", type=int)
     print(contract_address)
@@ -126,8 +138,8 @@ def get_storage_at():
     key = request.args.get("key")
     print(key)
 
-    block_id = request.args.get("blockId", type=int)
-    print(block_id)
+    block_hash = request.args.get("blockHash", type=int)
+    print(block_hash)
     return "Not implemented", 501
 
 @app.route("/feeder_gateway/get_transaction_status", methods=["GET"])
@@ -150,7 +162,18 @@ def get_transaction():
     ret = starknet_wrapper.get_transaction(transaction_hash)
     return jsonify(ret)
 
+@app.route("/feeder_gateway/get_transaction_receipt", methods=["GET"])
+def get_transaction_receipt():
+    """
+    Returns the transaction receipt identified by the transactionHash argument in the GET request.
+    """
+
+    return "Not implemented", 501
+
 def main():
+    # reduce startup logging
+    os.environ['WERKZEUG_RUN_MAIN'] = 'true'
+
     args = parse_args()
     app.run(**vars(args))
 
