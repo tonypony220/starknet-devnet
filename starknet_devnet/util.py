@@ -1,5 +1,6 @@
 from enum import Enum, auto
 import argparse
+from typing import Union
 
 from starkware.starkware_utils.error_handling import StarkException
 from . import __version__
@@ -23,6 +24,17 @@ class TxStatus(Enum):
 
     ACCEPTED_ONCHAIN = auto()
     """The transaction was accepted on-chain."""
+
+def custom_int(arg: str) -> str:
+    base = 16 if arg.startswith("0x") else 10
+    return int(arg, base)
+
+def fixed_length_hex(arg: int) -> str:
+    """
+    Converts the int input to a hex output of fixed length
+    """
+
+    return f"0x{arg:064x}"
 
 
 DEFAULT_HOST = "localhost"

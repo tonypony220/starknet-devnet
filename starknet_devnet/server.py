@@ -2,10 +2,11 @@ from flask import Flask, request, jsonify, abort
 from flask.wrappers import Response
 from flask_cors import CORS
 from starkware.starknet.business_logic.internal_transaction import InternalDeploy
-from starkware.starknet.services.api.gateway.transaction import Deploy, InvokeFunction, Transaction
+from starkware.starknet.services.api.gateway.transaction import InvokeFunction, Transaction
 from starkware.starknet.definitions.transaction_type import TransactionType
 from starkware.starkware_utils.error_handling import StarkErrorCode, StarkException
-from .util import TxStatus, parse_args
+from werkzeug.datastructures import MultiDict
+from .util import StarknetDevnetException, TxStatus, custom_int, fixed_length_hex, parse_args
 from .starknet_wrapper import Choice, StarknetWrapper
 import os
 
@@ -26,9 +27,14 @@ async def add_transaction():
     Endpoint for accepting DEPLOY and INVOKE_FUNCTION transactions.
     """
 
-    state = await starknet_wrapper.get_state()
     raw_data = request.get_data()
-    transaction = Transaction.loads(raw_data)
+    try:
+        transaction = Transaction.loads(raw_data)
+    except TypeError:
+        msg = "Invalid transaction format. Try recompiling your contract with a newer version."
+        abort(Response(msg, 400))
+
+    state = await starknet_wrapper.get_state()
 
     tx_type = transaction.tx_type.name
     result_dict = {}
@@ -36,8 +42,8 @@ async def add_transaction():
     error_message = None
 
     if tx_type == TransactionType.DEPLOY.name:
-        deploy_transaction: InternalDeploy = InternalDeploy.from_external(transaction, state)
-        contract_address = hex(deploy_transaction.contract_address)
+        deploy_transaction: InternalDeploy = InternalDeploy.from_external(transaction, state.general_config)
+        contract_address = deploy_transaction.contract_address
         try:
             await starknet_wrapper.deploy(
                 contract_definition=deploy_transaction.contract_definition,
@@ -58,11 +64,11 @@ async def add_transaction():
 
     elif tx_type == TransactionType.INVOKE_FUNCTION.name:
         transaction: InvokeFunction = transaction
-        contract_address = hex(transaction.contract_address)
+        contract_address = transaction.contract_address
         try:
             result_dict = await starknet_wrapper.call_or_invoke(
                 Choice.INVOKE,
-                contract_address=transaction.contract_address,
+                contract_address=contract_address,
                 entry_point_selector=transaction.entry_point_selector,
                 calldata=transaction.calldata,
                 signature=transaction.signature
@@ -85,7 +91,7 @@ async def add_transaction():
     return jsonify({
         "code": StarkErrorCode.TRANSACTION_RECEIVED.name,
         "transaction_hash": transaction_hash,
-        "address": contract_address,
+        "address": fixed_length_hex(contract_address),
         **result_dict
     })
 
@@ -115,32 +121,36 @@ async def call_contract():
 
     return jsonify(result_dict)
 
+def check_block_hash(request_args: MultiDict[str, str]):
+    block_hash = request_args.get("blockHash", type=custom_int)
+    if block_hash is not None:
+        print("Specifying a block by its hash is not supported. All interaction is done with the latest block.")
+
 @app.route("/feeder_gateway/get_block", methods=["GET"])
 def get_block():
-    block_hash = request.args.get("blockHash", type=int)
-    print(block_hash)
+    check_block_hash(request.args)
     return "Not implemented", 501
 
 @app.route("/feeder_gateway/get_code", methods=["GET"])
 def get_code():
-    block_hash = request.args.get("blockHash", type=int)
-    print(block_hash)
+    """
+    Returns the ABI and bytecode of the contract whose contractAddress is provided.
+    """
+    check_block_hash(request.args)
 
-    contract_address = request.args.get("contractAddress", type=int)
-    print(contract_address)
-    return "Not implemented", 501
+    contract_address = request.args.get("contractAddress", type=custom_int)
+    result_dict = starknet_wrapper.get_code(contract_address)
+    return jsonify(result_dict)
 
 @app.route("/feeder_gateway/get_storage_at", methods=["GET"])
-def get_storage_at():
-    contract_address = request.args.get("contractAddress", type=int)
-    print(contract_address)
+async def get_storage_at():
+    check_block_hash(request.args)
 
-    key = request.args.get("key")
-    print(key)
+    contract_address = request.args.get("contractAddress", type=custom_int)
+    key = request.args.get("key", type=custom_int)
 
-    block_hash = request.args.get("blockHash", type=int)
-    print(block_hash)
-    return "Not implemented", 501
+    storage = await starknet_wrapper.get_storage_at(contract_address, key)
+    return jsonify(storage)
 
 @app.route("/feeder_gateway/get_transaction_status", methods=["GET"])
 def get_transaction_status():

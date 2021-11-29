@@ -1,17 +1,13 @@
 #!/bin/bash
 set -e
 
+source scripts/settings.ini
 [ -f .env ] && source .env
 
 trap 'kill $(jobs -p)' EXIT
 
-host=localhost
-port=5000
 poetry run starknet-devnet --host="$host" --port="$port" &
 sleep 1 # give the server some time to get up
-
-GATEWAY_URL="http://$host:$port"
-FEEDER_GATEWAY_URL="http://$host:$port"
 
 CONTRACT_PATH=starknet-hardhat-example/starknet-artifacts/contracts/auth_contract.cairo/auth_contract.json
 ABI_PATH=starknet-hardhat-example/starknet-artifacts/contracts/auth_contract.cairo/auth_contract_abi.json
@@ -43,6 +39,7 @@ if [ "$deploy_tx_status2" != "PENDING" ]; then
     exit 2
 fi
 
+# increase and get balance
 input_value=4321
 starknet invoke \
     --function increase_balance \
@@ -62,11 +59,16 @@ result=$(starknet call \
     --inputs $public_key
 )
 
-if [ "$result" == 5321 ]; then
-    echo "Success!"
+expected=5321
+if [ "$result" == "$expected" ]; then
+    echo "Invoke successful!"
 else
-    echo "Test failed!"
-    echo "Expected: $input_value"
+    echo "Invoke failed!"
+    echo "Expected: $expected"
     echo "Received: $result"
     exit 2
 fi
+
+# check storage
+balance_key=142452623821144136554572927896792266630776240502820879601186867231282346767
+scripts/test-storage.sh "$address" "$balance_key" 0x14c9
