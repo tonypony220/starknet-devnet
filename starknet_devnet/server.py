@@ -121,7 +121,7 @@ async def call_contract():
 
     return jsonify(result_dict)
 
-def check_block_hash(request_args: MultiDict[str, str]):
+def check_block_hash(request_args: MultiDict):
     block_hash = request_args.get("blockHash", type=custom_int)
     if block_hash is not None:
         print("Specifying a block by its hash is not supported. All interaction is done with the latest block.")
