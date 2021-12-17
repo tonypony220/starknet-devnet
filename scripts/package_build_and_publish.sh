@@ -3,7 +3,7 @@ set -e
 
 [ -f .env ] && source .env
 
-PYPI_VERSION=$(curl -Ls https://pypi.org/pypi/starknet-devnet/json | jq ".releases | keys | .[length-1]" -r)
+PYPI_VERSION=$(curl -Ls https://pypi.org/pypi/starknet-devnet/json | jq -r .info.version)
 echo "Pypi version: $PYPI_VERSION"
 
 LOCAL_VERSION=$(./scripts/get_version.sh version)

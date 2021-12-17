@@ -13,12 +13,16 @@ IMAGE=shardlabs/starknet-devnet
 LOCAL_VERSION=$(./scripts/get_version.sh version)
 echo "Local version: $LOCAL_VERSION"
 
-# Building is executed regardless of versions
+echo "Build image regardless of versioning"
 docker build -t "$IMAGE:$LOCAL_VERSION" -t "$IMAGE:latest" .
 
-docker run -it -p 127.0.0.1:5000:5000 "$IMAGE:latest" &
-sleep 5
-curl localhost:5000/is_alive && echo "Containerized devnet is working!"
+echo "Run a devnet instance in background; sleep to allow it to start"
+# can't use "localhost" because docker doesn't allow such mapping
+docker run -d -p 127.0.0.1:5000:5000 "$IMAGE:latest"
+sleep 3
+
+echo "Checking if devnet instance is alive"
+curl localhost:5000/is_alive
 
 if [ $(docker_tag_exists "$IMAGE" "$LOCAL_VERSION") = "yes" ]; then
     echo "Latest Docker Hub version is already equal to the local version."
