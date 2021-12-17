@@ -34,14 +34,13 @@ async def add_transaction():
         msg = "Invalid transaction format. Try recompiling your contract with a newer version."
         abort(Response(msg, 400))
 
-    state = await starknet_wrapper.get_state()
-
     tx_type = transaction.tx_type.name
     result_dict = {}
     status = TxStatus.ACCEPTED_ON_L2
     error_message = None
 
     if tx_type == TransactionType.DEPLOY.name:
+        state = await starknet_wrapper.get_state()
         deploy_transaction: InternalDeploy = InternalDeploy.from_external(transaction, state.general_config)
         contract_address = deploy_transaction.contract_address
         try:
@@ -54,7 +53,7 @@ async def add_transaction():
             error_message = e.message
             status = TxStatus.REJECTED
 
-        transaction_hash = starknet_wrapper.store_deploy_transaction(
+        transaction_hash = await starknet_wrapper.store_deploy_transaction(
             contract_address=contract_address,
             calldata=deploy_transaction.constructor_calldata,
             salt=deploy_transaction.contract_address_salt,
@@ -77,7 +76,7 @@ async def add_transaction():
             error_message = e.message
             status = TxStatus.REJECTED
 
-        transaction_hash = starknet_wrapper.store_invoke_transaction(
+        transaction_hash = await starknet_wrapper.store_invoke_transaction(
             contract_address=contract_address,
             calldata=transaction.calldata,
             entry_point_selector=transaction.entry_point_selector,
@@ -127,9 +126,14 @@ def check_block_hash(request_args: MultiDict):
         print("Specifying a block by its hash is not supported. All interaction is done with the latest block.")
 
 @app.route("/feeder_gateway/get_block", methods=["GET"])
-def get_block():
-    check_block_hash(request.args)
-    return "Not implemented", 501
+async def get_block():
+    block_hash = request.args.get("blockHash")
+    block_number = request.args.get("blockNumber", type=custom_int)
+    try:
+        result_dict = starknet_wrapper.get_block(block_hash=block_hash, block_number=block_number)
+    except StarkException as e:
+        abort(Response(e.message, 500))
+    return jsonify(result_dict)
 
 @app.route("/feeder_gateway/get_code", methods=["GET"])
 def get_code():

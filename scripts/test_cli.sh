@@ -6,6 +6,11 @@ source scripts/settings.ini
 
 trap 'kill $(jobs -p)' EXIT
 
+function extract_tx_hash() {
+    output="$1"
+    echo "$output" | sed -rn "s/.*Transaction hash: (\w*).*/\1/p"
+}
+
 poetry run starknet-devnet --host="$host" --port="$port" &
 sleep 1 # give the server some time to get up
 
@@ -18,8 +23,8 @@ output=$(starknet deploy \
     --inputs 0 \
     --gateway_url $GATEWAY_URL
 )
-deploy_tx_hash=$(echo $output | sed -r "s/.*Transaction hash: (\w*).*/\1/")
-address=$(echo $output | sed -r "s/.*Contract address: (\w*).*/\1/")
+deploy_tx_hash=$(extract_tx_hash "$output")
+address=$(echo "$output" | sed -rn "s/.*Contract address: (\w*).*/\1/p")
 echo "Address: $address"
 echo "tx_hash: $deploy_tx_hash"
 
@@ -39,18 +44,18 @@ fi
 
 # check storage after deployment
 balance_key=916907772491729262376534102982219947830828984996257231353398618781993312401
-scripts/test-storage.sh "$address" "$balance_key" 0x0
+scripts/test_storage.sh "$address" "$balance_key" 0x0
+
+# check block after deployment
+scripts/test_block.sh 0 "$deploy_tx_hash"
 
 # check code
-code_result_file=$(mktemp)
-code_expected_file=scripts/code.expected.json
-starknet get_code --contract_address $address --feeder_gateway_url=$FEEDER_GATEWAY_URL > "$code_result_file"
-diff "$code_result_file" "$code_expected_file"
-rm "$code_result_file"
+scripts/test_code.sh "$address"
 
 # increase and get balance
-starknet invoke --function increase_balance --inputs 10 20 --address $address --abi $ABI_PATH --gateway_url=$GATEWAY_URL
-result=$(starknet call --function get_balance --address $address --abi $ABI_PATH --feeder_gateway_url=$FEEDER_GATEWAY_URL)
+invoke_output=$(starknet invoke --function increase_balance --inputs 10 20 --address $address --abi "$ABI_PATH" --gateway_url "$GATEWAY_URL")
+invoke_tx_hash=$(extract_tx_hash "$invoke_output")
+result=$(starknet call --function get_balance --address $address --abi "$ABI_PATH" --feeder_gateway_url "$FEEDER_GATEWAY_URL")
 
 expected=30
 echo
@@ -64,4 +69,7 @@ else
 fi
 
 # check storage after increase
-scripts/test-storage.sh "$address" "$balance_key" 0x1e
+scripts/test_storage.sh "$address" "$balance_key" 0x1e
+
+# check block after increase
+scripts/test_block.sh 1 "$invoke_tx_hash"

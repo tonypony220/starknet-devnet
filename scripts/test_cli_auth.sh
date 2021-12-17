@@ -20,8 +20,8 @@ output=$(starknet deploy \
     --inputs $public_key $initial_balance \
     --gateway_url $GATEWAY_URL
 )
-deploy_tx_hash=$(echo $output | sed -r "s/.*Transaction hash: (\w*).*/\1/")
-address=$(echo $output | sed -r "s/.*Contract address: (\w*).*/\1/")
+deploy_tx_hash=$(echo "$output" | sed -rn "s/.*Transaction hash: (\w*).*/\1/p")
+address=$(echo "$output" | sed -rn "s/.*Contract address: (\w*).*/\1/p")
 echo "Address: $address"
 echo "tx_hash: $deploy_tx_hash"
 
@@ -71,4 +71,4 @@ fi
 
 # check storage
 balance_key=142452623821144136554572927896792266630776240502820879601186867231282346767
-scripts/test-storage.sh "$address" "$balance_key" 0x14c9
+scripts/test_storage.sh "$address" "$balance_key" 0x14c9
