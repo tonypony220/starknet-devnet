@@ -31,6 +31,7 @@ function result_assertion() {
 }
 
 cd starknet-hardhat-example
+mv "$HARDHAT_CONFIG_FILE" hardhat.config.ts
 # npx hardhat starknet-compile <- Already executed in setup_example.sh
 # devnet already defined in config as localhost:5000
 npx hardhat starknet-deploy \
@@ -42,4 +43,9 @@ npx hardhat starknet-deploy \
 | result_assertion
 echo "Finished deploy-call procedure"
 
-npx hardhat test
+if [ -f "TEST_FILE" ]; then
+    echo "Invalid TEST_FILE provided"
+    exit 1
+fi
+
+npx hardhat test "$TEST_FILE"
