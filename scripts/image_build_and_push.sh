@@ -3,12 +3,6 @@ set -e
 
 [ -f .env ] && source .env
 
-# idea from: https://stackoverflow.com/a/50945459
-# returns "yes" or "no" instead of exit code so as to be able to use the benefits of `set -e`
-function docker_tag_exists() {
-    curl --silent -f -lSL "https://hub.docker.com/v2/repositories/$1/tags/$2" > /dev/null 2>&1 && echo "yes" || echo "no"
-}
-
 IMAGE=shardlabs/starknet-devnet
 LOCAL_VERSION=$(./scripts/get_version.sh version)
 echo "Local version: $LOCAL_VERSION"
@@ -24,11 +18,21 @@ sleep 3
 echo "Checking if devnet instance is alive"
 ssh remote-docker curl localhost:5000/is_alive
 
-if [ $(docker_tag_exists "$IMAGE" "$LOCAL_VERSION") = "yes" ]; then
+# curling the url fails with 404
+function docker_image_exists() {
+    curl --silent -f -lSL "$1" > /dev/null 2>&1
+}
+
+function log_already_pushed() {
     echo "Latest Docker Hub version is already equal to the local version."
     echo "Pushing skipped"
-else
+}
+
+function push() {
     docker login --username "$DOCKER_USER" --password "$DOCKER_PASS"
     docker push "$IMAGE:$LOCAL_VERSION"
     docker push "$IMAGE:latest"
-fi
+}
+
+dockerhub_url="https://hub.docker.com/v2/repositories/$IMAGE/tags/$LOCAL_VERSION"
+docker_image_exists "$dockerhub_url" && log_already_pushed || push
