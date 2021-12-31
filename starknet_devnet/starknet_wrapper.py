@@ -5,41 +5,20 @@ starkware.starknet.testing.starknet.Starknet.
 
 import time
 from copy import deepcopy
-from typing import Dict, List
-from starkware.starknet.business_logic.internal_transaction import InternalDeploy
+from typing import Dict
 
+from starkware.starknet.business_logic.internal_transaction import InternalDeploy
 from starkware.starknet.business_logic.state import CarriedState
-from starkware.starknet.services.api.gateway.transaction import InvokeFunction
+from starkware.starknet.definitions.transaction_type import TransactionType
+from starkware.starknet.services.api.gateway.transaction import InvokeFunction, Transaction
 from starkware.starknet.testing.starknet import Starknet
 from starkware.starknet.testing.objects import StarknetTransactionExecutionInfo
-from starkware.starknet.definitions.error_codes import StarknetErrorCode
-from starkware.starknet.definitions.transaction_type import TransactionType
 from starkware.starkware_utils.error_handling import StarkException
 
 from .origin import Origin
 from .util import Choice, StarknetDevnetException, TxStatus, fixed_length_hex, DummyExecutionInfo
 from .contract_wrapper import ContractWrapper
-from .transaction_wrapper import TransactionWrapper
-
-def _generate_transaction_basis(contract_address: str, status: TxStatus, transaction_hash: str, **transaction_details: dict):
-    return {
-        "status": status.name,
-        "transaction": {
-            "contract_address": fixed_length_hex(contract_address),
-            "transaction_hash": transaction_hash,
-            **transaction_details
-        },
-        "transaction_index": 0 # always the first (and only) tx in the block
-    }
-
-def _generate_transaction_receipt_basis(status: TxStatus, transaction_hash: str, execution_info: StarknetTransactionExecutionInfo):
-    return {
-        "execution_resources": execution_info.call_info.cairo_usage,
-        "l2_to_l1_messages": execution_info.l2_to_l1_messages,
-        "status": status.name,
-        "transaction_hash": transaction_hash,
-        "transaction_index": 0 # always the first (and only) tx in the block
-    }
+from .transaction_wrapper import TransactionWrapper, DeployTransactionWrapper, InvokeTransactionWrapper
 
 class StarknetWrapper:
     """
@@ -53,13 +32,13 @@ class StarknetWrapper:
         self.__address2contract_wrapper: Dict[int, ContractWrapper] = {}
         """Maps contract address to contract wrapper."""
 
-        self.__transaction_wrappers: List[TransactionWrapper] = []
-        """A chronological list of transaction_wrappers."""
+        self.__transaction_wrappers: Dict[int, TransactionWrapper] = {}
+        """Maps transaction hash to transaction wrapper."""
 
         self.__hash2block = {}
         """Maps block hash to block."""
 
-        self.__own_blocks = {}
+        self.__num2block: Dict[int, Dict] = {}
         """Maps block number to block (one transaction per block); holds only own blocks."""
 
         self.__starknet = None
@@ -133,7 +112,7 @@ class StarknetWrapper:
             error_message = err.message
             status = TxStatus.REJECTED
 
-        transaction_hash = await self.__store_deploy_transaction(
+        transaction_hash = await self.store_wrapper_transaction(
             transaction,
             status=status,
             execution_info=DummyExecutionInfo(),
@@ -165,16 +144,16 @@ class StarknetWrapper:
 
         return { "result": adapted_result }, execution_info
 
-    def __is_transaction_hash_legal(self, transaction_hash_int: int) -> bool:
-        return 0 <= transaction_hash_int < len(self.__transaction_wrappers)
-
     def get_transaction_status(self, transaction_hash: str):
         """Returns the status of the transaction identified by `transaction_hash`."""
 
-        transaction_hash_int = int(transaction_hash, 16)
+        tx_hash_int = int(transaction_hash,16)
+        if tx_hash_int in self.__transaction_wrappers:
 
-        if self.__is_transaction_hash_legal(transaction_hash_int):
-            transaction = self.__transaction_wrappers[transaction_hash_int].transaction
+            transaction_wrapper = self.__transaction_wrappers[tx_hash_int]
+
+            transaction = transaction_wrapper.transaction
+
             ret = {
                 "tx_status": transaction["status"]
             }
@@ -193,17 +172,21 @@ class StarknetWrapper:
     def get_transaction(self, transaction_hash: str):
         """Returns the transaction identified by `transaction_hash`."""
 
-        transaction_hash_int = int(transaction_hash, 16)
-        if self.__is_transaction_hash_legal(transaction_hash_int):
-            return self.__transaction_wrappers[transaction_hash_int].transaction
+        tx_hash_int = int(transaction_hash,16)
+        if tx_hash_int in self.__transaction_wrappers:
+
+            return self.__transaction_wrappers[tx_hash_int].transaction
+
         return self.origin.get_transaction(transaction_hash)
 
     def get_transaction_receipt(self, transaction_hash: str):
         """Returns the transaction receipt of the transaction identified by `transaction_hash`."""
 
-        transaction_hash_int = int(transaction_hash, 16)
-        if self.__is_transaction_hash_legal(transaction_hash_int):
-            return self.__transaction_wrappers[transaction_hash_int].receipt
+        tx_hash_int = int(transaction_hash,16)
+        if tx_hash_int in self.__transaction_wrappers:
+
+            return self.__transaction_wrappers[tx_hash_int].receipt
+
         return {
             "l2_to_l1_messages": [],
             "status": TxStatus.NOT_RECEIVED.name,
@@ -212,7 +195,7 @@ class StarknetWrapper:
 
     def get_number_of_blocks(self):
         """Returns the number of blocks stored so far."""
-        return len(self.__own_blocks) + self.origin.get_number_of_blocks()
+        return len(self.__num2block) + self.origin.get_number_of_blocks()
 
     async def __generate_block(self, transaction: dict, receipt: dict):
         """
@@ -230,7 +213,7 @@ class StarknetWrapper:
         block = {
             "block_hash": block_hash,
             "block_number": block_number,
-            "parent_block_hash": self.__get_last_block()["block_hash"] if self.__own_blocks else "0x0",
+            "parent_block_hash": self.__get_last_block()["block_hash"] if self.__num2block else "0x0",
             "state_root": state_root,
             "status": TxStatus.ACCEPTED_ON_L2.name,
             "timestamp": int(time.time()),
@@ -239,7 +222,7 @@ class StarknetWrapper:
         }
 
         number_of_blocks = self.get_number_of_blocks()
-        self.__own_blocks[number_of_blocks] = block
+        self.__num2block[number_of_blocks] = block
         self.__hash2block[int(block_hash, 16)] = block
 
     def __get_last_block(self):
@@ -257,7 +240,7 @@ class StarknetWrapper:
     def get_block_by_number(self, block_number: int):
         """Returns the block whose block_number is provided"""
         if block_number is None:
-            if self.__own_blocks:
+            if self.__num2block:
                 return self.__get_last_block()
             return self.origin.get_block_by_number(block_number)
 
@@ -266,64 +249,40 @@ class StarknetWrapper:
             raise StarknetDevnetException(message=message)
 
         if block_number >= self.get_number_of_blocks():
-            message = f"Block number too high. There are currently {len(self.__own_blocks)} blocks; got: {block_number}."
+            message = f"Block number too high. There are currently {len(self.__num2block)} blocks; got: {block_number}."
             raise StarknetDevnetException(message=message)
 
-        if block_number in self.__own_blocks:
-            return self.__own_blocks[block_number]
+        if block_number in self.__num2block:
+            return self.__num2block[block_number]
 
         return self.origin.get_block_by_number(block_number)
 
-    async def __store_transaction(self, contract_address: str, status: TxStatus,
-        execution_info: StarknetTransactionExecutionInfo, error_message: str=None, **transaction_details: dict
-    ):
-        new_id = len(self.__transaction_wrappers)
-        hex_new_id = hex(new_id)
+    async def __store_transaction(self, transaction_wrapper: TransactionWrapper, error_message):
 
-        transaction = _generate_transaction_basis(contract_address, status, hex_new_id, **transaction_details)
-        receipt = _generate_transaction_receipt_basis(status, hex_new_id, execution_info)
-
-        if status == TxStatus.REJECTED:
-            failure_key = "transaction_failure_reason"
-            transaction[failure_key] = receipt[failure_key] = {
-                "code": StarknetErrorCode.TRANSACTION_FAILED.name,
-                "error_message": error_message,
-                "tx_id": new_id
-            }
+        if transaction_wrapper.transaction["status"] == TxStatus.REJECTED:
+            transaction_wrapper.set_transaction_failure(error_message)
         else:
-            await self.__generate_block(transaction, receipt)
+            await self.__generate_block(transaction_wrapper.transaction, transaction_wrapper.receipt)
 
-        self.__transaction_wrappers.append(TransactionWrapper(transaction, receipt))
-        return hex_new_id
+        self.__transaction_wrappers[int(transaction_wrapper.transaction_hash,16)] = transaction_wrapper
 
-    async def __store_deploy_transaction(self, transaction: InternalDeploy, status: TxStatus,
+        return transaction_wrapper.transaction_hash
+
+    async def store_wrapper_transaction(self, transaction: Transaction, status: TxStatus,
         execution_info: StarknetTransactionExecutionInfo, error_message: str=None
     ):
         """Stores the provided data as a deploy transaction in `self.transactions`."""
-        return await self.__store_transaction(
-            transaction.contract_address,
-            status,
-            execution_info,
-            error_message,
-            type=TransactionType.DEPLOY.name,
-            constructor_calldata=[str(arg) for arg in transaction.constructor_calldata],
-            contract_address_salt=hex(transaction.contract_address_salt)
-        )
 
-    async def store_invoke_transaction(self, transaction: InvokeFunction, status: TxStatus,
-        execution_info: StarknetTransactionExecutionInfo, error_message: str=None
-    ):
-        """Stores the provided data as an invoke transaction in `self.transactions`."""
-        return await self.__store_transaction(
-            transaction.contract_address,
-            status,
-            execution_info,
-            error_message,
-            type=TransactionType.INVOKE_FUNCTION.name,
-            calldata=[str(arg) for arg in transaction.calldata],
-            entry_point_selector=str(transaction.entry_point_selector),
-            # entry_point_type
-        )
+        starknet = await self.get_starknet()
+
+        if transaction.tx_type == TransactionType.DEPLOY:
+            tx_wrapper = DeployTransactionWrapper(transaction,status,starknet)
+        else:
+            tx_wrapper = InvokeTransactionWrapper(transaction,status,starknet)
+
+        tx_wrapper.generate_receipt(execution_info)
+
+        return await self.__store_transaction(tx_wrapper, error_message)
 
     def get_code(self, contract_address: int) -> dict:
         """Returns a `dict` with `abi` and `bytecode` of the contract at `contract_address`."""
