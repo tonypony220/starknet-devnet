@@ -7,14 +7,13 @@ import os
 from flask import Flask, request, jsonify, abort
 from flask.wrappers import Response
 from flask_cors import CORS
-from starkware.starknet.business_logic.internal_transaction import InternalDeploy
 from starkware.starknet.services.api.gateway.transaction import InvokeFunction, Transaction
 from starkware.starknet.definitions.transaction_type import TransactionType
 from starkware.starkware_utils.error_handling import StarkErrorCode, StarkException
 from werkzeug.datastructures import MultiDict
 
-from .util import DummyExecutionInfo, TxStatus, custom_int, fixed_length_hex, parse_args
-from .starknet_wrapper import Choice, StarknetWrapper
+from .util import custom_int, fixed_length_hex, parse_args
+from .starknet_wrapper import StarknetWrapper
 from .origin import NullOrigin
 
 app = Flask(__name__)
@@ -41,42 +40,20 @@ async def add_transaction():
         abort(Response(msg, 400))
 
     tx_type = transaction.tx_type.name
-    status = TxStatus.ACCEPTED_ON_L2
-    error_message = None
 
     if tx_type == TransactionType.DEPLOY.name:
-        state = await starknet_wrapper.get_state()
-        deploy_transaction: InternalDeploy = InternalDeploy.from_external(transaction, state.general_config)
-        contract_address = deploy_transaction.contract_address
-        transaction_hash = await starknet_wrapper.deploy(deploy_transaction)
-
+        contract_address, transaction_hash = await starknet_wrapper.deploy(transaction)
+        result_dict = {}
     elif tx_type == TransactionType.INVOKE_FUNCTION.name:
-        transaction: InvokeFunction = transaction
-        contract_address = transaction.contract_address
-        execution_info = DummyExecutionInfo()
-        try:
-            _, execution_info = await starknet_wrapper.call_or_invoke(
-                Choice.INVOKE,
-                transaction
-            )
-        except StarkException as err:
-            error_message = err.message
-            status = TxStatus.REJECTED
-
-        transaction_hash = await starknet_wrapper.store_wrapper_transaction(
-            transaction=transaction,
-            status=status,
-            execution_info=execution_info,
-            error_message=error_message
-        )
-
+        contract_address, transaction_hash, result_dict = await starknet_wrapper.invoke(transaction)
     else:
         abort(Response(f"Invalid tx_type: {tx_type}.", 400))
 
     return jsonify({
         "code": StarkErrorCode.TRANSACTION_RECEIVED.name,
-        "transaction_hash": transaction_hash,
-        "address": fixed_length_hex(contract_address)
+        "transaction_hash": fixed_length_hex(transaction_hash),
+        "address": fixed_length_hex(contract_address),
+        **result_dict
     })
 
 @app.route("/feeder_gateway/get_contract_addresses", methods=["GET"])
@@ -93,10 +70,7 @@ async def call_contract():
     raw_data = request.get_data()
     try:
         call_specifications = InvokeFunction.loads(raw_data)
-        result_dict, _ = await starknet_wrapper.call_or_invoke(
-            Choice.CALL,
-            call_specifications
-        )
+        result_dict = await starknet_wrapper.call(call_specifications)
     except StarkException as err:
         # code 400 would make more sense, but alpha returns 500
         abort(Response(err.message, 500))
