@@ -47,6 +47,11 @@ class TransactionWrapper(ABC):
     ):
         self.transaction_hash = tx_details.transaction_hash
 
+        events = []
+
+        if hasattr(execution_info, 'raw_events'):
+            events = execution_info.raw_events
+
         self.transaction = {
             "status": status.name,
             "transaction": tx_details.to_dict(),
@@ -56,6 +61,7 @@ class TransactionWrapper(ABC):
         self.receipt = {
             "execution_resources": execution_info.call_info.cairo_usage,
             "l2_to_l1_messages": execution_info.l2_to_l1_messages,
+            "events": events,
             "status": status.name,
             "transaction_hash": tx_details.transaction_hash,
             "transaction_index": 0 # always the first (and only) tx in the block
@@ -71,7 +77,7 @@ class TransactionWrapper(ABC):
         assert error_message
         assert self.transaction
         assert self.receipt
-        failure_key = "transaction_failure_reason"
+        failure_key = "tx_failure_reason"
         self.transaction[failure_key] = self.receipt[failure_key] = {
             "code": StarknetErrorCode.TRANSACTION_FAILED.name,
             "error_message": error_message,
