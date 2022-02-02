@@ -20,6 +20,7 @@ from .origin import Origin
 from .util import Choice, StarknetDevnetException, TxStatus, fixed_length_hex, DummyExecutionInfo
 from .contract_wrapper import ContractWrapper
 from .transaction_wrapper import TransactionWrapper, DeployTransactionWrapper, InvokeTransactionWrapper
+from .constants import FAILURE_REASON_KEY
 
 class StarknetWrapper:
     """
@@ -136,17 +137,13 @@ class StarknetWrapper:
         state = await self.__get_state()
         invoke_transaction: InternalInvokeFunction = InternalInvokeFunction.from_external(transaction, state.general_config)
 
-        signature_list = []
-        if hasattr(invoke_transaction, 'signature'):
-            signature_list = invoke_transaction.signature
-
         try:
             contract_wrapper = self.__get_contract_wrapper(invoke_transaction.contract_address)
             adapted_result, execution_info = await contract_wrapper.call_or_invoke(
                 Choice.INVOKE,
                 entry_point_selector=invoke_transaction.entry_point_selector,
                 calldata=invoke_transaction.calldata,
-                signature=signature_list
+                signature=invoke_transaction.signature
             )
             status = TxStatus.ACCEPTED_ON_L2
             error_message = None
@@ -170,15 +167,11 @@ class StarknetWrapper:
         """Perform call according to specifications in `transaction`."""
         contract_wrapper = self.__get_contract_wrapper(transaction.contract_address)
 
-        signature_list = []
-        if hasattr(transaction, 'signature'):
-            signature_list = transaction.signature
-
         adapted_result, _ = await contract_wrapper.call_or_invoke(
             Choice.CALL,
             entry_point_selector=transaction.entry_point_selector,
             calldata=transaction.calldata,
-            signature=signature_list
+            signature=transaction.signature
         )
 
         return { "result": adapted_result }
@@ -191,16 +184,21 @@ class StarknetWrapper:
             transaction_wrapper = self.__transaction_wrappers[tx_hash_int]
             transaction = transaction_wrapper.transaction
 
+            # the transaction status object only needs 1-3 elements from the transaction_wrapper object
             ret = {
+                # "tx_status" always exists
                 "tx_status": transaction["status"]
             }
 
+            # "block_hash" will only exist after transaction enters ACCEPTED_ON_L2
             if "block_hash" in transaction:
                 ret["block_hash"] = transaction["block_hash"]
 
-            failure_key = "tx_failure_reason"
-            if failure_key in transaction:
-                ret[failure_key] = transaction[failure_key]
+            # "tx_failure_reason" will only exist if the transaction was rejected.
+            # the key in the transaction_wrapper object is "transaction_failure_reason"
+            # first it must be checked if the object contains an element with that key
+            if FAILURE_REASON_KEY in transaction:
+                ret["tx_failure_reason"] = transaction[FAILURE_REASON_KEY]
 
             return ret
 
