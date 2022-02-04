@@ -3,7 +3,6 @@ A server exposing Starknet functionalities as API endpoints.
 """
 
 import os
-import json
 
 from flask import Flask, request, jsonify, abort
 from flask.wrappers import Response
@@ -16,7 +15,6 @@ from werkzeug.datastructures import MultiDict
 
 from .constants import CAIRO_LANG_VERSION
 from .starknet_wrapper import StarknetWrapper
-from .origin import NullOrigin
 from .util import custom_int, fixed_length_hex, parse_args
 
 app = Flask(__name__)
@@ -33,16 +31,7 @@ def is_alive():
 async def add_transaction():
     """Endpoint for accepting DEPLOY and INVOKE_FUNCTION transactions."""
 
-    request_dict = json.loads(request.data.decode("utf-8"))
-
-    if "signature" not in request_dict and request_dict["type"] == TransactionType.INVOKE_FUNCTION.name:
-        request_dict["signature"] = []
-
-    try:
-        transaction = Transaction.load(request_dict)
-    except (TypeError, ValidationError):
-        msg = f"Invalid tx. Be sure to use the correct compilation (json) artifact. Devnet-compatible cairo-lang version: {CAIRO_LANG_VERSION}"
-        abort(Response(msg, 400))
+    transaction = validate_transaction(request.data)
 
     tx_type = transaction.tx_type.name
 
@@ -61,6 +50,17 @@ async def add_transaction():
         **result_dict
     })
 
+def validate_transaction(data: bytes):
+    """Ensure `data` is a valid Starknet transaction. Returns the parsed `Transaction`."""
+
+    try:
+        transaction = Transaction.loads(data)
+    except (TypeError, ValidationError) as err:
+        msg = f"Invalid tx: {err}\nBe sure to use the correct compilation (json) artifact. Devnet-compatible cairo-lang version: {CAIRO_LANG_VERSION}"
+        abort(Response(msg, 400))
+
+    return transaction
+
 @app.route("/feeder_gateway/get_contract_addresses", methods=["GET"])
 def get_contract_addresses():
     """Endpoint that returns an object containing the addresses of key system components."""
@@ -72,19 +72,25 @@ async def call_contract():
     Endpoint for receiving calls (not invokes) of contract functions.
     """
 
-    request_dict = json.loads(request.data.decode("utf-8"))
-
-    if "signature" not in request_dict:
-        request_dict["signature"] = []
+    call_specifications = validate_call(request.data)
 
     try:
-        call_specifications = InvokeFunction.load(request_dict)
         result_dict = await starknet_wrapper.call(call_specifications)
     except StarkException as err:
         # code 400 would make more sense, but alpha returns 500
         abort(Response(err.message, 500))
 
     return jsonify(result_dict)
+
+def validate_call(data: bytes):
+    """Ensure `data` is valid Starknet function call. Returns an `InvokeFunction`."""
+
+    try:
+        call_specifications = InvokeFunction.loads(data)
+    except (TypeError, ValidationError) as err:
+        abort(Response(f"Invalid Starknet function call: {err}", 400))
+
+    return call_specifications
 
 def _check_block_hash(request_args: MultiDict):
     block_hash = request_args.get("blockHash", type=custom_int)
@@ -163,17 +169,18 @@ def get_transaction_receipt():
     ret = starknet_wrapper.get_transaction_receipt(transaction_hash)
     return jsonify(ret)
 
-args = parse_args()
-# Uncomment this once fork support is added
-# origin = Origin(args.fork) if args.fork else NullOrigin()
-origin = NullOrigin()
-starknet_wrapper = StarknetWrapper(origin)
+starknet_wrapper = StarknetWrapper()
 
 def main():
     """Runs the server."""
 
     # reduce startup logging
-    os.environ['WERKZEUG_RUN_MAIN'] = 'true'
+    os.environ["WERKZEUG_RUN_MAIN"] = "true"
+
+    args = parse_args()
+    # Uncomment this once fork support is added
+    # origin = Origin(args.fork) if args.fork else NullOrigin()
+    # starknet_wrapper.set_origin(origin)
 
     app.run(host=args.host, port=args.port)
 
