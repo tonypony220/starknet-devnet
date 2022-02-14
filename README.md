@@ -73,10 +73,34 @@ If you don't specify the `HOST` part, the server will indeed be available on all
   - `tx_status`
   - `get_transaction_receipt`
 - The following Starknet CLI commands are **not** supported:
-  - `get_contract_addresses` - L1-L2 interaction is currently not supported
+  - `get_contract_addresses` - Not yet supported
 
 ## Hardhat integration
 - If you're using [the Hardhat plugin](https://github.com/Shard-Labs/starknet-hardhat-plugin), see [here](https://github.com/Shard-Labs/starknet-hardhat-plugin#testing-network) on how to edit its config file to integrate Devnet.
+
+## Postman integration
+Postman is a Starknet utility that allows testing L1 <> L2 interactions. To extend this testing for devnet, 3 unique endpoints can be used:
+
+- Load a `StarknetMockMessaging` contract. The `address` in the body is optional. If provided, the `StarknetMockMessaging` contract will be fetched from that address, otherwise a new one will be deployed:
+  - POST "/postman/load_l1_messaging_contract"
+  - body: `{ "networkUrl":"http://localhost:5005", "address":"0x83D76591560d9CD02CE16c060c92118d19F996b3" }`
+
+- Flush. This will go through the new enqueued messages sent from L1 and send them to L2. This has to be done manually for L1 -> L2, but for L2 -> L1, it is done automatically:
+  - POST "/postman/flush"
+  - no body
+
+This method of L1 <> L2 communication testing differs from Starknet Alpha networks. Taking the [L1L2Example.sol](https://www.cairo-lang.org/docs/_static/L1L2Example.sol) contract in the [starknet documentation](https://www.cairo-lang.org/docs/hello_starknet/l1l2.html):
+```
+constructor(IStarknetCore starknetCore_) public {
+        starknetCore = starknetCore_;
+}
+```
+The constructor takes an `IStarknetCore` contract as argument, however for devnet L1 <> L2 communication testing, this will have to be replaced with the [MockStarknetMessaging.sol](https://github.com/starkware-libs/cairo-lang/blob/master/src/starkware/starknet/testing/MockStarknetMessaging.sol) contract:
+```
+constructor(MockStarknetMessaging mockStarknetMessaging_) public {
+    starknetCore = mockStarknetMessaging_;
+}
+```
 
 ## Development - Prerequisite
 If you're a developer willing to contribute, be sure to have installed [Poetry](https://pypi.org/project/poetry/).
