@@ -20,7 +20,7 @@ from werkzeug.datastructures import MultiDict
 from .constants import CAIRO_LANG_VERSION
 from .dump import Dumper
 from .starknet_wrapper import StarknetWrapper
-from .util import DumpOn, custom_int, fixed_length_hex, parse_args
+from .util import DumpOn, StarknetDevnetException, custom_int, fixed_length_hex, parse_args
 
 app = Flask(__name__)
 CORS(app)
@@ -134,6 +134,22 @@ def get_code():
 
     contract_address = request.args.get("contractAddress", type=custom_int)
     result_dict = starknet_wrapper.get_code(contract_address)
+    return jsonify(result_dict)
+
+@app.route("/feeder_gateway/get_full_contract", methods=["GET"])
+def get_full_contract():
+    """
+    Returns the contract definition of the contract whose contractAddress is provided.
+    """
+    _check_block_hash(request.args)
+
+    contract_address = request.args.get("contractAddress", type=custom_int)
+
+    try:
+        result_dict = starknet_wrapper.get_full_contract(contract_address)
+    except StarknetDevnetException as error:
+        # alpha throws 500 for unitialized contracts
+        abort(Response(error.message, 500))
     return jsonify(result_dict)
 
 @app.route("/feeder_gateway/get_storage_at", methods=["GET"])

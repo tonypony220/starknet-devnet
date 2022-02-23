@@ -9,6 +9,8 @@ import re
 import subprocess
 import time
 
+from starkware.starknet.services.api.contract_definition import ContractDefinition
+
 from .settings import GATEWAY_URL, FEEDER_GATEWAY_URL, HOST, PORT
 
 class ReturnCodeAssertionError(AssertionError):
@@ -166,6 +168,19 @@ def assert_contract_code(address):
     code = json.loads(output.stdout)
     # just checking key equality
     assert_equal(sorted(code.keys()), ["abi", "bytecode"])
+
+def assert_contract_definition(address, contract_path):
+    """Asserts the content of the contract definition of a contract at address."""
+    output = my_run([
+        "starknet", "get_full_contract",
+        "--contract_address", address
+    ])
+    contract_definition: ContractDefinition = ContractDefinition.load(json.loads(output.stdout))
+
+    loaded_contract = load_json_from_path(contract_path)
+    loaded_contract_definition: ContractDefinition = ContractDefinition.load(loaded_contract)
+
+    assert_equal(contract_definition, loaded_contract_definition.remove_debug_info())
 
 def assert_storage(address, key, expected_value):
     """Asserts the storage value stored at (address, key)."""

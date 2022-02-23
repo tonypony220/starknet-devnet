@@ -371,6 +371,11 @@ class StarknetWrapper:
             return contract_wrapper.code
         return self.__origin.get_code(contract_address)
 
+    def get_full_contract(self, contract_address: int) -> dict:
+        """Returns a `dict` contract definition of the contract at `contract_address`."""
+        contract_wrapper = self.__get_contract_wrapper(contract_address)
+        return contract_wrapper.contract_definition
+
     async def get_storage_at(self, contract_address: int, key: int) -> str:
         """
         Returns the storage identified by `key`
