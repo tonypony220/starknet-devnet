@@ -4,6 +4,9 @@ A server exposing Starknet functionalities as API endpoints.
 
 import os
 import json
+import signal
+import sys
+import dill as pickle
 
 from flask import Flask, request, jsonify, abort
 from flask.wrappers import Response
@@ -15,8 +18,9 @@ from starkware.starkware_utils.error_handling import StarkErrorCode, StarkExcept
 from werkzeug.datastructures import MultiDict
 
 from .constants import CAIRO_LANG_VERSION
+from .dump import Dumper
 from .starknet_wrapper import StarknetWrapper
-from .util import custom_int, fixed_length_hex, parse_args
+from .util import DumpOn, custom_int, fixed_length_hex, parse_args
 
 app = Flask(__name__)
 CORS(app)
@@ -43,7 +47,10 @@ async def add_transaction():
     else:
         abort(Response(f"Invalid tx_type: {tx_type}.", 400))
 
+    # after tx
     await starknet_wrapper.postman_flush()
+    if dumper.dump_on == DumpOn.TRANSACTION:
+        dumper.dump()
 
     return jsonify({
         "code": StarkErrorCode.TRANSACTION_RECEIVED.name,
@@ -204,18 +211,53 @@ def validate_load_messaging_contract(request_dict: dict):
         abort(Response(error_message, 400))
     return network_url
 
+@app.route("/dump", methods=["POST"])
+def dump():
+    """Dumps the starknet_wrapper"""
+
+    request_dict = request.json or {}
+    dump_path = request_dict.get("path") or dumper.dump_path
+    if not dump_path:
+        abort(Response("No path provided", 400))
+
+    dumper.dump(dump_path)
+    return Response(status=200)
+
+def dump_on_exit(_signum, _frame):
+    """Dumps on exit."""
+    dumper.dump(dumper.dump_path)
+    sys.exit(0)
+
 starknet_wrapper = StarknetWrapper()
+dumper = Dumper(starknet_wrapper)
 
 def main():
     """Runs the server."""
+
+    # pylint: disable=global-statement, invalid-name
+    global starknet_wrapper
 
     # reduce startup logging
     os.environ["WERKZEUG_RUN_MAIN"] = "true"
 
     args = parse_args()
+
     # Uncomment this once fork support is added
     # origin = Origin(args.fork) if args.fork else NullOrigin()
     # starknet_wrapper.set_origin(origin)
+
+    if args.load_path:
+        try:
+            starknet_wrapper = StarknetWrapper.load(args.load_path)
+        except (FileNotFoundError, pickle.UnpicklingError):
+            sys.exit(f"Error: Cannot load from {args.load_path}. Make sure the file exists and contains a Devnet dump.")
+
+    if args.dump_on == DumpOn.EXIT:
+        for sig in [signal.SIGTERM, signal.SIGINT]:
+            signal.signal(sig, dump_on_exit)
+
+    dumper.dump_path = args.dump_path
+    dumper.dump_on = args.dump_on
 
     app.run(host=args.host, port=args.port)
 
