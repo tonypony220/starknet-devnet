@@ -21,7 +21,7 @@ from starkware.starkware_utils.error_handling import StarkException
 from starkware.starknet.services.api.feeder_gateway.block_hash import calculate_block_hash
 
 from .origin import NullOrigin, Origin
-from .util import Choice, StarknetDevnetException, TxStatus, fixed_length_hex, DummyExecutionInfo, enable_pickling
+from .util import Choice, StarknetDevnetException, TxStatus, fixed_length_hex, DummyExecutionInfo, enable_pickling, generate_state_update
 from .contract_wrapper import ContractWrapper
 from .transaction_wrapper import TransactionWrapper, DeployTransactionWrapper, InvokeTransactionWrapper
 from .postman_wrapper import LocalPostmanWrapper
@@ -52,6 +52,9 @@ class StarknetWrapper:
         self.__num2block: Dict[int, Dict] = {}
         """Maps block number to block (one transaction per block); holds only own blocks."""
 
+        self.__hash2state_update: Dict[int, dict] = {}
+        """Maps block hash to state update"""
+
         self.__starknet = None
 
         self.__current_carried_state = None
@@ -60,6 +63,8 @@ class StarknetWrapper:
 
         self.__l1_provider = None
         """Saves the L1 URL being used for L1 <> L2 communication."""
+
+        self.__last_state_update = None
 
     @staticmethod
     def load(path: str) -> "StarknetWrapper":
@@ -99,6 +104,8 @@ class StarknetWrapper:
         )
         self.__starknet.state.state.shared_state = updated_shared_state
         await self.__preserve_current_state(self.__starknet.state.state)
+
+        self.__last_state_update = generate_state_update(previous_state, current_carried_state)
 
     async def __get_state_root(self):
         state = await self.__get_state()
@@ -303,6 +310,8 @@ class StarknetWrapper:
 
         self.__num2block[block_number] = block
         self.__hash2block[block_hash] = block
+        self.__last_state_update["block_hash"] = hex(block_hash)
+        self.__hash2state_update[block_hash] = self.__last_state_update
 
         return block_hash_hexed, block_number
 
@@ -386,9 +395,9 @@ class StarknetWrapper:
         state = await self.__get_state()
         contract_states = state.state.contract_states
 
-        state = contract_states[contract_address]
-        if key in state.storage_updates:
-            return hex(state.storage_updates[key].value)
+        contract_state = contract_states[contract_address]
+        if key in contract_state.storage_updates:
+            return hex(contract_state.storage_updates[key].value)
         return self.__origin.get_storage_at(self, contract_address, key)
 
     async def load_messaging_contract_in_l1(self, network_url: str, contract_address: str, network_id: str) -> dict:
@@ -458,3 +467,27 @@ Exception:
                 "from_l2": l2_messages
             }
         }
+
+    def get_state_update(self, block_hash=None, block_number=None):
+        """
+        Returns state update for the provided block hash or block number.
+        It will return the last state update if block is not provided.
+        """
+        if block_hash:
+            numeric_hash = int(block_hash, 16)
+
+            if numeric_hash in self.__hash2block:
+                return self.__hash2state_update[numeric_hash]
+
+            return self.__origin.get_state_update(block_hash=block_hash)
+
+        if block_number is not None:
+            if block_number in self.__num2block:
+                block = self.__num2block[block_number]
+                numeric_hash = int(block["block_hash"], 16)
+
+                return self.__hash2state_update[numeric_hash]
+
+            return self.__origin.get_state_update(block_number=block_number)
+
+        return self.__last_state_update or self.__origin.get_state_update()
