@@ -11,6 +11,7 @@ Aims to mimic Starknet's Alpha testnet, but with simplified functionality.
 - [Dumping and Loading](#dumping)
 - [Hardhat integration](#hardhat-integration)
 - [L1-L2 Postman communication](#postman-integration)
+- [Block explorer](#block-explorer)
 - [Development](#development)
 
 ## Install
@@ -175,6 +176,9 @@ docker run -it \
   --host 0.0.0.0 --port 5000 \
   --dump-on exit --dump-path /dumpdir/dump.pkl
 ```
+
+## Block explorer
+To see how to setup a local block explorer (Voyager) check this [post](https://twitter.com/kasiazerosiedem/status/1501492129264123911).
 
 ## Development
 If you're a developer willing to contribute, be sure to have installed [Poetry](https://pypi.org/project/poetry/).
