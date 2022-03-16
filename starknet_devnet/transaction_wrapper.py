@@ -50,8 +50,8 @@ def get_events(execution_info: StarknetTransactionExecutionInfo):
     for event in execution_info.raw_events:
         events.append({
             "from_address": hex(event.from_address),
-            "data": [str(d) for d in event.data],
-            "keys": [str(key) for key in event.keys]
+            "data": [hex(d) for d in event.data],
+            "keys": [hex(key) for key in event.keys]
         })
     return events
 
@@ -73,7 +73,7 @@ class TransactionWrapper(ABC):
         }
 
         self.receipt = {
-            "execution_resources": execution_info.call_info.cairo_usage,
+            "execution_resources": execution_info.call_info.execution_resources,
             "l2_to_l1_messages": execution_info.l2_to_l1_messages,
             "events": events,
             "status": status.name,
@@ -120,7 +120,7 @@ class DeployTransactionWrapper(TransactionWrapper):
                 TransactionType.DEPLOY.name,
                 contract_address=fixed_length_hex(contract_address),
                 transaction_hash=fixed_length_hex(tx_hash),
-                constructor_calldata=[str(arg) for arg in transaction.constructor_calldata],
+                constructor_calldata=[hex(arg) for arg in transaction.constructor_calldata],
                 contract_address_salt=hex(transaction.contract_address_salt)
             )
         )
@@ -137,7 +137,7 @@ class InvokeTransactionWrapper(TransactionWrapper):
                 TransactionType.INVOKE_FUNCTION.name,
                 contract_address=fixed_length_hex(internal_tx.contract_address),
                 transaction_hash=fixed_length_hex(internal_tx.hash_value),
-                calldata=[str(arg) for arg in internal_tx.calldata],
+                calldata=[hex(arg) for arg in internal_tx.calldata],
                 entry_point_selector=fixed_length_hex(internal_tx.entry_point_selector),
                 entry_point_type=internal_tx.entry_point_type.name,
                 signature=[str(sig_part) for sig_part in internal_tx.signature]
