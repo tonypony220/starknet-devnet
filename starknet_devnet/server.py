@@ -43,7 +43,10 @@ async def add_transaction():
         contract_address, transaction_hash = await starknet_wrapper.deploy(transaction)
         result_dict = {}
     elif tx_type == TransactionType.INVOKE_FUNCTION.name:
-        contract_address, transaction_hash, result_dict = await starknet_wrapper.invoke(transaction)
+        try:
+            contract_address, transaction_hash, result_dict = await starknet_wrapper.invoke(transaction)
+        except StarkException as stark_exception:
+            abort(Response(stark_exception.message, 500))
     else:
         abort(Response(f"Invalid tx_type: {tx_type}.", 400))
 
@@ -228,10 +231,16 @@ def get_state_update():
     return jsonify(state_update)
 
 @app.route("/feeder_gateway/estimate_fee", methods=["POST"])
-def estimate_fee():
+async def estimate_fee():
     """Currently a dummy implementation, always returning 0."""
+    transaction = validate_transaction(request.data, InvokeFunction)
+    try:
+        actual_fee = await starknet_wrapper.calculate_actual_fee(transaction)
+    except StarkException as stark_exception:
+        abort(Response(stark_exception.message, 500))
+
     return jsonify({
-        "amount": 0,
+        "amount": actual_fee,
         "unit": "wei"
     })
 
@@ -302,7 +311,7 @@ def main():
 
     # Uncomment this once fork support is added
     # origin = Origin(args.fork) if args.fork else NullOrigin()
-    # starknet_wrapper.set_origin(origin)
+    # starknet_wrapper.origin = origin
 
     if args.load_path:
         try:
