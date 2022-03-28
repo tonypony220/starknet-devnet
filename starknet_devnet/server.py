@@ -4,8 +4,8 @@ A server exposing Starknet functionalities as API endpoints.
 
 import os
 import json
-import signal
 import sys
+import meinheld
 import dill as pickle
 
 from flask import Flask, request, jsonify, abort
@@ -290,11 +290,6 @@ def dump():
     dumper.dump(dump_path)
     return Response(status=200)
 
-def dump_on_exit(_signum, _frame):
-    """Dumps on exit."""
-    dumper.dump(dumper.dump_path)
-    sys.exit(0)
-
 starknet_wrapper = StarknetWrapper()
 dumper = Dumper(starknet_wrapper)
 
@@ -319,14 +314,23 @@ def main():
         except (FileNotFoundError, pickle.UnpicklingError):
             sys.exit(f"Error: Cannot load from {args.load_path}. Make sure the file exists and contains a Devnet dump.")
 
-    if args.dump_on == DumpOn.EXIT:
-        for sig in [signal.SIGTERM, signal.SIGINT]:
-            signal.signal(sig, dump_on_exit)
-
     dumper.dump_path = args.dump_path
     dumper.dump_on = args.dump_on
 
-    app.run(host=args.host, port=args.port)
+    if args.lite_mode:
+        starknet_wrapper.lite_mode_block_hash = True
+        starknet_wrapper.lite_mode_deploy_hash = True
+    else:
+        starknet_wrapper.lite_mode_block_hash = args.lite_mode_block_hash
+        starknet_wrapper.lite_mode_deploy_hash = args.lite_mode_deploy_hash
+
+    try:
+        meinheld.listen((args.host, args.port))
+        meinheld.run(app)
+    finally:
+        if args.dump_on == DumpOn.EXIT:
+            dumper.dump(dumper.dump_path)
+            sys.exit(0)
 
 if __name__ == "__main__":
     main()
