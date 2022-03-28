@@ -33,6 +33,7 @@ markers = [
     "call",
     "deploy",
     "invoke",
+    "restart",
     "state_update",
     "transaction_trace",
     "general_workflow",
