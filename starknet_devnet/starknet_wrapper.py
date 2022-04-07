@@ -11,8 +11,7 @@ from web3 import Web3
 
 import dill as pickle
 from starkware.starknet.business_logic.internal_transaction import InternalInvokeFunction
-from starkware.starknet.business_logic.state import CarriedState
-from starkware.starknet.business_logic.transaction_fee import calculate_tx_fee_by_cairo_usage
+from starkware.starknet.business_logic.state.state import CarriedState
 from starkware.starknet.definitions.transaction_type import TransactionType
 from starkware.starknet.services.api.gateway.contract_address import calculate_contract_address
 from starkware.starknet.services.api.gateway.transaction import InvokeFunction, Deploy, Transaction
@@ -22,8 +21,8 @@ from starkware.starkware_utils.error_handling import StarkException
 from starkware.starknet.services.api.feeder_gateway.block_hash import calculate_block_hash
 
 from .origin import NullOrigin, Origin
+from .general_config import DEFAULT_GENERAL_CONFIG
 from .util import (
-    DEFAULT_GENERAL_CONFIG,
     Choice, StarknetDevnetException, TxStatus, DummyExecutionInfo,
     fixed_length_hex, enable_pickling, generate_state_update
 )
@@ -177,7 +176,8 @@ class StarknetWrapper:
                 tx_hash=tx_hash,
                 status=status,
                 execution_info=execution_info,
-                error_message=error_message
+                error_message=error_message,
+                contract_hash=state.state.contract_states[contract_address].state.contract_hash
             )
 
         return contract_address, tx_hash
@@ -315,7 +315,7 @@ class StarknetWrapper:
         timestamp = int(time.time())
         signature = []
         if "signature" in tx_wrapper.transaction["transaction"]:
-            signature = [int(sig_part) for sig_part in tx_wrapper.transaction["transaction"]["signature"]]
+            signature = [int(sig_part, 16) for sig_part in tx_wrapper.transaction["transaction"]["signature"]]
 
         parent_block_hash = self.__get_last_block()["block_hash"] if block_number else fixed_length_hex(0)
 
@@ -386,7 +386,7 @@ class StarknetWrapper:
 
     # pylint: disable=too-many-arguments
     async def __store_transaction(self, transaction: Transaction, contract_address: int, tx_hash: int, status: TxStatus,
-        execution_info: StarknetTransactionExecutionInfo, error_message: str=None
+        execution_info: StarknetTransactionExecutionInfo, error_message: str=None, contract_hash: bytes=None
     ):
         """Stores the provided data as a deploy transaction in `self.transactions`."""
         if transaction.tx_type == TransactionType.DEPLOY:
@@ -395,7 +395,8 @@ class StarknetWrapper:
                 contract_address=contract_address,
                 tx_hash=tx_hash,
                 status=status,
-                execution_info=execution_info
+                execution_info=execution_info,
+                contract_hash=contract_hash,
             )
         elif transaction.tx_type == TransactionType.INVOKE_FUNCTION:
             tx_wrapper = InvokeTransactionWrapper(transaction, status, execution_info)
@@ -537,10 +538,4 @@ Exception:
         state_copy = state.state._copy() # pylint: disable=protected-access
         execution_info = await internal_tx.apply_state_updates(state_copy, state.general_config)
 
-        cairo_resource_usage = execution_info.call_info.execution_resources.to_dict()
-
-        return calculate_tx_fee_by_cairo_usage(
-            general_config=state.general_config,
-            cairo_resource_usage=cairo_resource_usage,
-            l1_gas_usage=0
-        )
+        return execution_info.actual_fee
