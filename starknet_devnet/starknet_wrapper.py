@@ -19,6 +19,9 @@ from starkware.starknet.testing.starknet import Starknet
 from starkware.starknet.testing.objects import StarknetTransactionExecutionInfo
 from starkware.starkware_utils.error_handling import StarkException
 from starkware.starknet.services.api.feeder_gateway.block_hash import calculate_block_hash
+from starkware.starknet.business_logic.transaction_fee import calculate_tx_fee_by_cairo_usage
+from starkware.starknet.services.api.contract_definition import EntryPointType
+from starkware.starknet.definitions import constants
 
 from .origin import NullOrigin, Origin
 from .general_config import DEFAULT_GENERAL_CONFIG
@@ -530,12 +533,30 @@ Exception:
 
         return self.__last_state_update or self.origin.get_state_update()
 
-    async def calculate_actual_fee(self, transaction: InvokeFunction):
+    async def calculate_actual_fee(self, external_tx: InvokeFunction):
         """Calculates actual fee"""
         state = await self.__get_state()
-        internal_tx = InternalInvokeFunction.from_external(transaction, state.general_config)
+        internal_tx = InternalInvokeFunction.create(
+            contract_address=external_tx.contract_address,
+            entry_point_selector=external_tx.entry_point_selector,
+            max_fee=external_tx.max_fee,
+            entry_point_type=EntryPointType.EXTERNAL,
+            calldata=external_tx.calldata,
+            signature=external_tx.signature,
+            nonce=None,
+            chain_id=state.general_config.chain_id.value,
+            # Need to set to 0 as it will be invoked in apply_state_updates
+            version=constants.TRANSACTION_VERSION,
+        )
 
         state_copy = state.state._copy() # pylint: disable=protected-access
         execution_info = await internal_tx.apply_state_updates(state_copy, state.general_config)
 
-        return execution_info.actual_fee
+        actual_fee = calculate_tx_fee_by_cairo_usage(
+            general_config=state.general_config,
+            cairo_resource_usage=execution_info.call_info.execution_resources.to_dict(),
+            l1_gas_usage=0,
+            gas_price=state.general_config.min_gas_price
+        )
+
+        return actual_fee
