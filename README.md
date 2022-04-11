@@ -41,7 +41,7 @@ brew install gmp
 
 ## Disclaimer
 
-- Devnet should not be used as a replacement for Alpha testnet. After testing on Devnet, be sure to test on testnet!
+- Devnet should not be used as a replacement for Alpha testnet. After testing on Devnet, be sure to test on testnet (alpha-goerli)!
 - Specifying a block by its hash/number is not supported. All interaction is done with the latest block.
 - Read more in [interaction](#interaction-api).
 
@@ -212,7 +212,7 @@ docker run \
 
 ## Block explorer
 
-To see how to setup a local block explorer (Voyager) check [here](https://voyager.online/local-version/).
+A local block explorer (Voyager), as noted [here](https://voyager.online/local-version/), apparently cannot be set up to work with Devnet. Read more in [this issue](https://github.com/Shard-Labs/starknet-devnet/issues/60).
 
 ## Lite mode
 
@@ -224,7 +224,12 @@ To improve Devnet performance, consider passing these CLI flags on Devnet startu
 
 ## Development
 
-If you're a developer willing to contribute, be sure to have installed [Poetry](https://pypi.org/project/poetry/).
+If you're a developer willing to contribute, be sure to have installed [Poetry](https://pypi.org/project/poetry/) and all the dependency packages.
+
+```text
+pip install poetry
+poetry install
+```
 
 ### Development - Run
 
