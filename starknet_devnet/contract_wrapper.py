@@ -5,22 +5,11 @@ Contains code for wrapping StarknetContract instances.
 from dataclasses import dataclass
 from typing import List
 
-from starkware.starknet.public.abi import get_selector_from_name
 from starkware.starknet.services.api.contract_definition import ContractDefinition
 from starkware.starknet.testing.contract import StarknetContract
-from starkware.starknet.testing.objects import StarknetTransactionExecutionInfo
+from starkware.starknet.utils.api_utils import cast_to_felts
 
-from starknet_devnet.adapt import adapt_calldata, adapt_output
-from starknet_devnet.util import Choice, StarknetDevnetException
-
-def extract_types(abi):
-    """
-    Extracts the types (structs) used in the contract whose ABI is provided.
-    """
-
-    structs = [entry for entry in abi if entry["type"] == "struct"]
-    type_dict = { struct["name"]: struct for struct in structs }
-    return type_dict
+from starknet_devnet.util import Choice
 
 @dataclass
 class ContractWrapper:
@@ -36,29 +25,31 @@ class ContractWrapper:
             "bytecode": self.contract_definition["program"]["data"]
         }
 
-        self.types: dict = extract_types(contract_definition.abi)
-
-    async def call_or_invoke(self, choice: Choice, entry_point_selector: int, calldata: List[int], signature: List[int]):
+    # pylint: disable=too-many-arguments
+    async def call_or_invoke(
+        self,
+        choice: Choice,
+        entry_point_selector: int,
+        calldata: List[int],
+        signature: List[int],
+        caller_address: int,
+        max_fee: int
+    ):
         """
         Depending on `choice`, performs the call or invoke of the function
         identified with `entry_point_selector`, potentially passing in `calldata` and `signature`.
         """
-        function_mapping = self.contract._abi_function_mapping # pylint: disable=protected-access
-        for method_name in function_mapping:
-            selector = get_selector_from_name(method_name)
-            if selector == entry_point_selector:
-                try:
-                    method = getattr(self.contract, method_name)
-                except NotImplementedError as nie:
-                    raise StarknetDevnetException from nie
-                function_abi = function_mapping[method_name]
-                break
-        else:
-            raise StarknetDevnetException(message=f"Illegal method selector: {entry_point_selector}.")
 
-        adapted_calldata = adapt_calldata(calldata, function_abi["inputs"], self.types)
+        state = self.contract.state.copy() if choice == Choice.CALL else self.contract.state
 
-        prepared = method(*adapted_calldata)
-        called = getattr(prepared, choice.value)
-        execution_info: StarknetTransactionExecutionInfo = await called(signature=signature)
-        return adapt_output(execution_info.result), execution_info
+        execution_info = await state.invoke_raw(
+            contract_address=self.contract.contract_address,
+            selector=entry_point_selector,
+            calldata=calldata,
+            caller_address=caller_address,
+            max_fee=max_fee,
+            signature=signature and cast_to_felts(values=signature),
+        )
+
+        result = list(map(hex, execution_info.call_info.retdata))
+        return result, execution_info

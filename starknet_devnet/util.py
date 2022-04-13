@@ -173,6 +173,15 @@ class DummyExecutionInfo:
         self.retdata = []
         self.internal_calls = []
         self.l2_to_l1_messages = []
+        self.raw_events = []
+
+    def get_sorted_events(self):
+        """Return empty list"""
+        return self.raw_events
+
+    def get_sorted_l2_to_l1_messages(self):
+        """Return empty list"""
+        return self.l2_to_l1_messages
 
 def enable_pickling():
     """

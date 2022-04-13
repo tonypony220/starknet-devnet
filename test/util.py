@@ -7,6 +7,7 @@ import json
 import os
 import re
 import subprocess
+import sys
 import time
 
 from starkware.starknet.services.api.contract_definition import ContractDefinition
@@ -30,6 +31,32 @@ def run_devnet_in_background(*args, sleep_seconds=5):
     time.sleep(sleep_seconds)
     atexit.register(proc.kill)
     return proc
+
+def devnet_in_background(*devnet_args, **devnet_kwargs):
+    """
+    Decorator that runs devnet in background and later kills it.
+    Prints devnet output in case of AssertionError.
+    """
+    def wrapper(func):
+        def inner_wrapper(*args, **kwargs):
+            proc = run_devnet_in_background(*devnet_args, **devnet_kwargs)
+            try:
+                func(*args, **kwargs)
+            except AssertionError as error:
+                proc.kill()
+                stdout, stderr = proc.communicate()
+
+                print("Devnet stdout:", file=sys.stderr)
+                print(stdout.decode("utf-8"), file=sys.stderr)
+
+                print("Devnet stderr:", file=sys.stderr)
+                print(stderr.decode("utf-8"), file=sys.stderr)
+
+                raise error
+            finally:
+                proc.kill()
+        return inner_wrapper
+    return wrapper
 
 def assert_equal(actual, expected, explanation=None):
     """Assert that the two values are equal. Optionally provide explanation."""
