@@ -20,8 +20,6 @@ from starkware.starknet.testing.objects import StarknetTransactionExecutionInfo
 from starkware.starkware_utils.error_handling import StarkException
 from starkware.starknet.services.api.feeder_gateway.block_hash import calculate_block_hash
 from starkware.starknet.business_logic.transaction_fee import calculate_tx_fee_by_cairo_usage
-from starkware.starknet.services.api.contract_definition import EntryPointType
-from starkware.starknet.definitions import constants
 
 from .origin import NullOrigin, Origin
 from .general_config import DEFAULT_GENERAL_CONFIG
@@ -29,7 +27,7 @@ from .util import (
     Choice, StarknetDevnetException, TxStatus, DummyExecutionInfo,
     fixed_length_hex, enable_pickling, generate_state_update
 )
-from .contract_wrapper import ContractWrapper
+from .contract_wrapper import ContractWrapper, call_internal_tx
 from .transaction_wrapper import TransactionWrapper, DeployTransactionWrapper, InvokeTransactionWrapper
 from .postman_wrapper import LocalPostmanWrapper
 from .constants import FAILURE_REASON_KEY
@@ -555,21 +553,9 @@ Exception:
     async def calculate_actual_fee(self, external_tx: InvokeFunction):
         """Calculates actual fee"""
         state = await self.__get_state()
-        internal_tx = InternalInvokeFunction.create(
-            contract_address=external_tx.contract_address,
-            entry_point_selector=external_tx.entry_point_selector,
-            max_fee=external_tx.max_fee,
-            entry_point_type=EntryPointType.EXTERNAL,
-            calldata=external_tx.calldata,
-            signature=external_tx.signature,
-            nonce=None,
-            chain_id=state.general_config.chain_id.value,
-            # Need to set to 0 as it will be invoked in apply_state_updates
-            version=constants.TRANSACTION_VERSION,
-        )
+        internal_tx = InternalInvokeFunction.from_external_query_tx(external_tx, state.general_config)
 
-        state_copy = state.state._copy() # pylint: disable=protected-access
-        execution_info = await internal_tx.apply_state_updates(state_copy, state.general_config)
+        execution_info = await call_internal_tx(state.copy(), internal_tx)
 
         actual_fee = calculate_tx_fee_by_cairo_usage(
             general_config=state.general_config,
