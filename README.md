@@ -69,6 +69,13 @@ optional arguments:
   --dump-on DUMP_ON     Specify when to dump; can dump on: exit, transaction
 ```
 
+You can run `starknet-devnet` in a separate shell, or you can run it in background with `starknet-devnet &`. 
+Check that it's alive by running the following (address and port my vary if you specified a different one with `--host` or `--port`):
+
+```
+curl http://localhost:5000/is_alive
+```
+
 ### Run with Docker
 
 Devnet is available as a Docker image ([shardlabs/starknet-devnet](https://hub.docker.com/repository/docker/shardlabs/starknet-devnet)):
