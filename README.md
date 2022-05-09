@@ -136,7 +136,7 @@ If you don't specify the `HOST` part, the server will indeed be available on all
 
 ## Postman integration
 
-Postman is a Starknet utility that allows testing L1 <> L2 interactions. To utilize this, you can use [`starknet-hardhat-plugin`](https://github.com/Shard-Labs/starknet-hardhat-plugin), as witnessed in [this example](https://github.com/Shard-Labs/starknet-hardhat-example/blob/master/test/postman.test.ts). Or you can directly interact with the two Postman-specific endpoints:
+Postman is a Starknet utility that allows testing L1 <> L2 interaction. To utilize this, you can use [`starknet-hardhat-plugin`](https://github.com/Shard-Labs/starknet-hardhat-plugin), as witnessed in [this example](https://github.com/Shard-Labs/starknet-hardhat-example/blob/master/test/postman.test.ts). Or you can directly interact with the two Postman-specific endpoints:
 
 - Load a `StarknetMockMessaging` contract. The `address` parameter is optional; if provided, the `StarknetMockMessaging` contract will be fetched from that address, otherwise a new one will be deployed:
 
@@ -147,7 +147,7 @@ Postman is a Starknet utility that allows testing L1 <> L2 interactions. To util
     - [Ganache node](https://www.npmjs.com/package/ganache)
     - [Hardhat node](https://hardhat.org/hardhat-network/#running-stand-alone-in-order-to-support-wallets-and-other-software).
 
-- Flush. This will go through the new enqueued messages sent from L1 and send them to L2. This has to be done manually for L1 -> L2, but for L2 -> L1, it is done automatically:
+- Flush. This will go through the new enqueued messages, sending them from L1 to L2 and from L2 to L1:
   - `POST /postman/flush`
   - body: None
 
