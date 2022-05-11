@@ -107,11 +107,13 @@ class StarknetWrapper:
             previous_state = self.__current_carried_state
             assert previous_state is not None
             current_carried_state = (await self.__get_state()).state
+            state = await self.__get_state()
 
             current_carried_state.block_info = BlockInfo(
                 block_number=current_carried_state.block_info.block_number,
                 gas_price=current_carried_state.block_info.gas_price,
                 block_timestamp=int(time.time()),
+                sequencer_address=state.general_config.sequencer_address
             )
 
             updated_shared_state = await current_carried_state.shared_state.apply_state_updates(
@@ -328,6 +330,8 @@ class StarknetWrapper:
         signature = []
         if "signature" in tx_wrapper.transaction["transaction"]:
             signature = [int(sig_part, 16) for sig_part in tx_wrapper.transaction["transaction"]["signature"]]
+        sequencer_address = state.general_config.sequencer_address
+        gas_price = state.general_config.min_gas_price
 
         parent_block_hash = self.__get_last_block()["block_hash"] if block_number else fixed_length_hex(0)
 
@@ -342,7 +346,8 @@ class StarknetWrapper:
                 block_timestamp=timestamp,
                 tx_hashes=[int(tx_wrapper.transaction_hash, 16)],
                 tx_signatures=[signature],
-                event_hashes=[]
+                event_hashes=[],
+                sequencer_address=sequencer_address
             )
             self.__last_state_update["block_hash"] = hex(block_hash)
             self.__hash2state_update[block_hash] = self.__last_state_update
@@ -351,7 +356,9 @@ class StarknetWrapper:
         block = {
             "block_hash": block_hash_hexed,
             "block_number": block_number,
+            "gas_price": hex(gas_price),
             "parent_block_hash": parent_block_hash,
+            "sequencer_address": hex(sequencer_address),
             "state_root": state_root.hex(),
             "status": TxStatus.ACCEPTED_ON_L2.name,
             "timestamp": timestamp,
