@@ -265,7 +265,7 @@ Block timestamp can be manipulated by seting the exact time or seting the time o
 
 ### Set time
 
-Sets the exact time of the next generated block. All blocks afterwards will keep a set offset.
+Sets the exact time of the next generated block. All subsequent blocks will keep the set offset.
 
 ```
 POST /set_time
