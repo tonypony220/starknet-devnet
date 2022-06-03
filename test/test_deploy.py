@@ -33,6 +33,7 @@ async def test_deploy():
     Test the deployment of a contract.
     """
     devnet = StarknetWrapper(config=DevnetConfig())
+    await devnet.initialize()
     deploy_transaction = get_deploy_transaction(inputs=[0])
 
     contract_address, tx_hash = await devnet.deploy(deploy_transaction=deploy_transaction)
@@ -61,6 +62,7 @@ async def test_deploy_lite():
     Test the deployment of a contract with lite mode.
     """
     devnet = StarknetWrapper(config=DevnetConfig(lite_mode_block_hash=True, lite_mode_deploy_hash=True))
+    await devnet.initialize()
     deploy_transaction = get_deploy_transaction(inputs=[0])
 
     contract_address, tx_hash = await devnet.deploy(deploy_transaction=deploy_transaction)

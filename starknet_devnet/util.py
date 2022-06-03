@@ -16,9 +16,13 @@ from starkware.starknet.services.api.feeder_gateway.response_objects import (
 )
 
 from . import __version__
-
-DEFAULT_HOST = "127.0.0.1"
-DEFAULT_PORT = 5050
+from .constants import (
+    DEFAULT_ACCOUNTS,
+    DEFAULT_GAS_PRICE,
+    DEFAULT_HOST,
+    DEFAULT_INITIAL_BALANCE,
+    DEFAULT_PORT
+)
 
 def custom_int(arg: str) -> int:
     """
@@ -33,6 +37,24 @@ def fixed_length_hex(arg: int) -> str:
     Converts the int input to a hex output of fixed length
     """
     return f"0x{arg:064x}"
+
+@dataclass
+class Uint256:
+    """Abstraction of Uint256 type"""
+    low: int
+    high: int
+
+    def to_felt(self) -> int:
+        """Converts to felt."""
+        return (self.high << 128) + self.low
+
+    @staticmethod
+    def from_felt(felt: int) -> "Uint256":
+        """Converts felt to Uint256"""
+        return Uint256(
+            low=felt & ((1 << 128) - 1),
+            high=felt >> 128
+        )
 
 # Uncomment this once fork support is added
 # def _fork_url(name: str):
@@ -86,7 +108,7 @@ def parse_args():
     )
     parser.add_argument(
         "--host",
-        help=f"Specify the address to listen at; defaults to {DEFAULT_HOST}" +
+        help=f"Specify the address to listen at; defaults to {DEFAULT_HOST} " +
              "(use the address the program outputs on start)",
         default=DEFAULT_HOST
     )
@@ -112,7 +134,7 @@ def parse_args():
     parser.add_argument(
         "--lite-mode",
         action='store_true',
-        help="Applies all optimizations by disabling some features. These can be applied individually by using other flags instead of this one."
+        help="Applies all lite-mode-* optimizations by disabling some features."
     )
     parser.add_argument(
         "--lite-mode-block-hash",
@@ -125,9 +147,34 @@ def parse_args():
         help="Disables deploy tx hash calculation"
     )
     parser.add_argument(
+        "--accounts",
+        type=int,
+        help=f"Specify the number of accounts to be predeployed; defaults to {DEFAULT_ACCOUNTS}",
+        default=DEFAULT_ACCOUNTS
+    )
+    parser.add_argument(
+        "--initial-balance", "-e",
+        type=int,
+        help="Specify the initial balance of accounts to be predeployed; " +
+             f"defaults to {DEFAULT_INITIAL_BALANCE:g}",
+        default=DEFAULT_INITIAL_BALANCE
+    )
+    parser.add_argument(
+        "--seed",
+        type=int,
+        help="Specify the seed for randomness of accounts to be predeployed"
+    )
+    parser.add_argument(
         "--start-time",
         action=NonNegativeAction,
-        help="Specify the start time of the genesis block in Unix time"
+        help="Specify the start time of the genesis block in Unix time seconds"
+    )
+    parser.add_argument(
+        "--gas-price", "-g",
+        type=int,
+        default=DEFAULT_GAS_PRICE,
+        help="Specify the gas price in wei per gas unit; " +
+             f"defaults to {DEFAULT_GAS_PRICE:g}"
     )
     # Uncomment this once fork support is added
     # parser.add_argument(
@@ -156,7 +203,9 @@ class StarknetDevnetException(StarkException):
 class DummyCallInfo:
     """Used temporarily until contracts received from starknet.deploy include their own execution_info.call_info"""
     def __init__(self):
-        self.execution_resources = {}
+        self.execution_resources = None
+        self.contract_address = None
+        self.events = []
 
 @dataclass
 class DummyExecutionInfo:

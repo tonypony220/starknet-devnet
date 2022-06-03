@@ -5,7 +5,7 @@ starkware.starknet.testing.starknet.Starknet.
 
 import dataclasses
 from copy import deepcopy
-from typing import Dict, Tuple
+from typing import Dict, List, Tuple
 
 import dill as pickle
 from starkware.starknet.business_logic.internal_transaction import InternalInvokeFunction, InternalDeploy
@@ -14,13 +14,15 @@ from starkware.starknet.services.api.gateway.contract_address import calculate_c
 from starkware.starknet.services.api.gateway.transaction import InvokeFunction, Deploy
 from starkware.starknet.testing.starknet import Starknet
 from starkware.starkware_utils.error_handling import StarkException
-from starkware.starknet.business_logic.transaction_fee import calculate_tx_fee_by_cairo_usage
+from starkware.starknet.business_logic.transaction_fee import calculate_tx_fee
 from starkware.starknet.services.api.feeder_gateway.response_objects import TransactionStatus
 
-from .origin import NullOrigin, Origin
+from .account import Account
+from .fee_token import FeeToken
 from .general_config import DEFAULT_GENERAL_CONFIG
+from .origin import NullOrigin, Origin
 from .util import (
-    StarknetDevnetException, DummyExecutionInfo,
+    DummyExecutionInfo,
     enable_pickling, generate_state_update
 )
 from .contract_wrapper import ContractWrapper, call_internal_tx
@@ -57,12 +59,27 @@ class StarknetWrapper:
         self.transactions = DevnetTransactions(self.origin)
         self.__starknet = None
         self.__current_carried_state = None
+        self.__initialized = False
+
+        self.accounts: List[Account] = []
+        """List of predefined accounts"""
 
     @staticmethod
     def load(path: str) -> "StarknetWrapper":
         """Load a serialized instance of this class from `path`."""
         with open(path, "rb") as file:
             return pickle.load(file)
+
+    async def initialize(self):
+        """Initialize the underlying starknet instance, fee_token and accounts."""
+        if not self.__initialized:
+            starknet = await self.__get_starknet()
+
+            await self.__deploy_fee_token()
+            await self.__deploy_accounts()
+
+            await self.__preserve_current_state(starknet.state.state)
+            self.__initialized = True
 
     async def __preserve_current_state(self, state: CarriedState):
         self.__current_carried_state = deepcopy(state)
@@ -74,8 +91,6 @@ class StarknetWrapper:
         """
         if not self.__starknet:
             self.__starknet = await Starknet.empty(general_config=DEFAULT_GENERAL_CONFIG)
-            await self.__preserve_current_state(self.__starknet.state.state)
-
         return self.__starknet
 
     async def get_state(self):
@@ -143,6 +158,17 @@ class StarknetWrapper:
             transaction.set_block(block=block)
 
         self.transactions.store(tx_hash, transaction)
+
+    async def __deploy_fee_token(self):
+        starknet = await self.__get_starknet()
+        await FeeToken.deploy(starknet)
+        self.contracts.store(FeeToken.ADDRESS, ContractWrapper(FeeToken.contract, FeeToken.get_definition()))
+
+    async def __deploy_accounts(self):
+        starknet = await self.__get_starknet()
+        for account in self.accounts:
+            contract = await account.deploy(starknet)
+            self.contracts.store(account.address, ContractWrapper(contract, Account.get_definition()))
 
     def set_config(self, config: DevnetConfig):
         """
@@ -217,13 +243,6 @@ class StarknetWrapper:
         invoke_transaction: InternalInvokeFunction = InternalInvokeFunction.from_external(invoke_function, state.general_config)
 
         try:
-            # This check might not be needed in future versions which will interact with the token contract
-            if invoke_transaction.max_fee: # handle only if non-zero
-                actual_fee = await self.calculate_actual_fee(invoke_function)
-                if actual_fee > invoke_transaction.max_fee:
-                    message = f"Actual fee exceeded max fee.\n{actual_fee} > {invoke_transaction.max_fee}"
-                    raise StarknetDevnetException(message=message)
-
             contract_wrapper = self.contracts.get_by_address(invoke_transaction.contract_address)
             adapted_result, execution_info = await contract_wrapper.invoke(
                 entry_point_selector=invoke_transaction.entry_point_selector,
@@ -296,13 +315,12 @@ class StarknetWrapper:
         state = await self.get_state()
         internal_tx = InternalInvokeFunction.from_external_query_tx(external_tx, state.general_config)
 
-        execution_info = await call_internal_tx(state.copy(), internal_tx)
-
-        actual_fee = calculate_tx_fee_by_cairo_usage(
-            general_config=state.general_config,
-            cairo_resource_usage=execution_info.call_info.execution_resources.to_dict(),
-            l1_gas_usage=0,
-            gas_price=state.general_config.min_gas_price
+        state_copy = state.copy()
+        execution_info = await call_internal_tx(state_copy, internal_tx)
+        actual_fee = calculate_tx_fee(
+            state=state_copy.state,
+            call_info = execution_info.call_info,
+            general_config=state.general_config
         )
 
         return actual_fee
@@ -314,3 +332,7 @@ class StarknetWrapper:
     def set_block_time(self, time_s: int):
         """Sets the block time to `time_s`."""
         self.block_info_generator.set_next_block_time(time_s)
+
+    def set_gas_price(self, gas_price: int):
+        """Sets gas price to `gas_price`."""
+        self.block_info_generator.set_gas_price(gas_price)

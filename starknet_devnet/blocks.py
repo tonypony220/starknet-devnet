@@ -130,7 +130,7 @@ class DevnetBlocks():
             timestamp=timestamp,
             transaction_receipts=transaction_receipts,
             status=BlockStatus.ACCEPTED_ON_L2,
-            gas_price=state.general_config.min_gas_price,
+            gas_price=state.state.block_info.gas_price,
             sequencer_address=state.general_config.sequencer_address,
             parent_block_hash=parent_block_hash
         )
