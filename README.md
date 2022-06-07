@@ -146,7 +146,7 @@ If you don't specify the `HOST` part, the server will indeed be available on all
   - `get_transaction`
   - `get_transaction_receipt`
   - `get_transaction_trace`
-  - `invoke` (currently will fail for max_fee > 0)
+  - `invoke`
   - `tx_status`
 - The following Starknet CLI commands are **not** supported:
   - `get_contract_addresses`
