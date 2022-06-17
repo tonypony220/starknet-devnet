@@ -426,6 +426,8 @@ When running tests locally, do it from the project root:
 
 poetry run pytest test/
 
+poetry run pytest -s -v test/ # for more verbose output
+
 poetry run pytest test/<TEST_FILE> # for a single file
 
 poetry run pytest test/<TEST_FILE>::<TEST_CASE> # for a single test case
