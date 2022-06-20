@@ -19,11 +19,11 @@ class Account:
     """Account contract wrapper."""
 
     CONTRACT_CLASS: ContractClass = None # loaded lazily
-    CONTRACT_PATH = "accounts_artifacts/OpenZeppelin/0.1.0/Account.cairo/Account"
+    CONTRACT_PATH = "accounts_artifacts/OpenZeppelin/b27101eb826fae73f49751fa384c2a0ff3377af2/Account.cairo/Account"
 
     # Precalculated to save time
     # HASH = compute_class_hash(contract_class=Account.get_contract_class()))
-    HASH = 361479646297615797917493841430922492724680358320444679508058603177506550951
+    HASH = 1803505466663265559571280894381905521939782500874858933595227108099796801620
     HASH_BYTES = to_bytes(HASH)
 
     # Random value to make the constructor_calldata the only thing that affects the account address
