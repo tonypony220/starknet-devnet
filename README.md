@@ -417,6 +417,12 @@ If you're a developer willing to contribute, be sure to have installed [Poetry](
 poetry run starknet-devnet
 ```
 
+### Development - Run in debug mode
+
+```text
+./scripts/starknet-devnet-debug.sh 
+```
+
 ### Development - Lint
 
 ```text
