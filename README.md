@@ -112,8 +112,8 @@ docker pull shardlabs/starknet-devnet:<TAG>
 
 Image tags correspond to Devnet versions as on PyPI and GitHub, with the `latest` tag used for the latest image. These images are built for linux/amd64. To use the arm64 versions, since `0.1.23` you can append `-arm` to the tag. E.g.:
 
-- `shardlabs/starknet-devnet:0.1.23` - image for the amd64 architecture
-- `shardlabs/starknet-devnet:0.1.23-arm` - image for the arm64 architecture
+- `shardlabs/starknet-devnet:0.2.4` - image for the amd64 architecture
+- `shardlabs/starknet-devnet:0.2.4-arm` - image for the arm64 architecture
 
 The server inside the container listens to the port 5050, which you need to publish to a desired `<PORT>` on your host machine:
 
