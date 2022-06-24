@@ -9,7 +9,7 @@
                 "address": {
                     "type": "string",
                     "enum": [
-                        "0xc7608a2ba18f3af1a7d95ac07b7772ca5d2e84c6191e1ccb99a74521b4eda4"
+                        "0x6e3205f9b7c4328f00f718fdecf56ab31acfb3cd6ffeb999dcbac41236ea502"
                     ]
                 },
                 "initial_balance": {
@@ -45,7 +45,7 @@
                 "address": {
                     "type": "string",
                     "enum": [
-                        "0x5d13db75ca726e8b45484c7c5692493e41f883e20888baf6cfeb9444938ba89"
+                        "0x47a132d933fdbc3620b5b0231e5aca25b5c20b7fba64f1d8da4c5f3ff718d1b"
                     ]
                 },
                 "initial_balance": {
@@ -81,7 +81,7 @@
                 "address": {
                     "type": "string",
                     "enum": [
-                        "0x14271050ae36fb1a217a5d9a0eb73b76ccaee633c5acc7008ceeace3c18694f"
+                        "0x1ca0f5aca09e0faf2d2dd3dd92bc4710c9698935a6bbb7f51d7c609d2a7e1e"
                     ]
                 },
                 "initial_balance": {
