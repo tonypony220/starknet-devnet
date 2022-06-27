@@ -239,18 +239,20 @@ starknet-devnet --dump-on transaction --dump-path <PATH>
 curl -X POST http://<HOST>:<PORT>/dump -d '{ "path": <PATH> }' -H "Content-Type: application/json"
 ```
 
-- Loading state on request `/load`:
-
-```
-curl -X POST http://<HOST>:<PORT>/load -d '{ "path": <PATH> }' -H "Content-Type: application/json"
-```
-
 ### Loading
 
-To load a preserved Devnet instance, run:
+To load a preserved Devnet instance, the options are:
+
+- Loading on startup:
 
 ```
 starknet-devnet --load-path <PATH>
+```
+
+- Loading on request:
+
+```
+curl -X POST http://<HOST>:<PORT>/load -d '{ "path": <PATH> }' -H "Content-Type: application/json"
 ```
 
 ### Enabling dumping and loading with Docker
@@ -440,7 +442,7 @@ poetry run starknet-devnet
 ### Development - Run in debug mode
 
 ```text
-./scripts/starknet-devnet-debug.sh 
+./scripts/starknet-devnet-debug.sh
 ```
 
 ### Development - Lint
