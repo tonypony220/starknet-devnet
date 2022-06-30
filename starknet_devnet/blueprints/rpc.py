@@ -11,7 +11,7 @@ from typing_extensions import TypedDict
 
 from flask import Blueprint, request
 
-from starkware.starknet.services.api.contract_class import ContractClass, EntryPointType
+from starkware.starknet.services.api.contract_class import ContractClass
 from starkware.starkware_utils.error_handling import StarkException
 from starkware.starknet.services.api.gateway.transaction import InvokeFunction
 from starkware.starknet.services.api.gateway.transaction_utils import compress_program
