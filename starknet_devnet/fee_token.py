@@ -5,6 +5,7 @@ Fee token and its predefined constants.
 from starkware.solidity.utils import load_nearby_contract
 from starkware.starknet.services.api.contract_class import ContractClass
 from starkware.starknet.services.api.gateway.transaction import InvokeFunction
+from starkware.starknet.storage.starknet_storage import StorageLeaf
 from starkware.starknet.business_logic.state.objects import (ContractState, ContractCarriedState)
 from starkware.starknet.testing.contract import StarknetContract
 from starkware.starknet.testing.starknet import Starknet
@@ -19,7 +20,7 @@ class FeeToken:
 
     # Precalcuated to save time
     # HASH = to_bytes(compute_class_hash(contract_class=FeeToken.get_contract_class()))
-    HASH = 622162576885893966911555913489982941873402447667986332137393761644775003206
+    HASH = 3000409729603134799471314790024123407246450023546294072844903167350593031855
     HASH_BYTES = to_bytes(HASH)
 
     # Random value to fix the token contract address
@@ -31,7 +32,7 @@ class FeeToken:
     #     constructor_calldata=CONSTRUCTOR_CALLDATA,
     #     caller_address=0
     # )
-    ADDRESS = 3290689117291098244070635649148776316499078311384971296169699628362510021171
+    ADDRESS = 2774287484619332564597403632816768868845110259953541691709975889937073775752
 
     contract: StarknetContract = None
 
@@ -39,7 +40,7 @@ class FeeToken:
     def get_contract_class(cls):
         """Returns contract class via lazy loading."""
         if not cls.CONTRACT_CLASS:
-            cls.CONTRACT_CLASS = ContractClass.load(load_nearby_contract("ERC20_Mintable"))
+            cls.CONTRACT_CLASS = ContractClass.load(load_nearby_contract("ERC20_Mintable_OZ_0.2.0"))
         return cls.CONTRACT_CLASS
 
     @classmethod
@@ -62,9 +63,9 @@ class FeeToken:
                 # Running the constructor doesn't need to be simulated
                 # If it was, it would be done like this:
                 # get_selector_from_name("ERC20_name_"): StorageLeaf(42)
-                #'ERC20_name': 'TestST',
-                #'ERC20_symbol': 'TST',
-                #'ERC20_decimals': 18
+                get_selector_from_name('ERC20_name'): StorageLeaf(int.from_bytes(bytes('DevnetST', "ascii"), "big")),
+                get_selector_from_name('ERC20_symbol'): StorageLeaf(int.from_bytes(bytes('DST', "ascii"), "big")),
+                get_selector_from_name('ERC20_decimals'): StorageLeaf(18)
             }
         )
 
