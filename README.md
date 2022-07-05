@@ -20,6 +20,7 @@ Aims to mimic Starknet's Alpha testnet, but with simplified functionality.
 - [Advancing time](#advancing-time)
 - [Contract debugging](#contract-debugging)
 - [Predeployed accounts](#predeployed-accounts)
+- [Mint token - Local faucet](#mint-token---local-faucet)
 - [Devnet speed-up troubleshooting](#devnet-speed-up-troubleshooting)
 - [Development](#development)
 
@@ -112,8 +113,8 @@ docker pull shardlabs/starknet-devnet:<TAG>
 
 Image tags correspond to Devnet versions as on PyPI and GitHub, with the `latest` tag used for the latest image. These images are built for linux/amd64. To use the arm64 versions, since `0.1.23` you can append `-arm` to the tag. E.g.:
 
-- `shardlabs/starknet-devnet:0.2.4` - image for the amd64 architecture
-- `shardlabs/starknet-devnet:0.2.4-arm` - image for the arm64 architecture
+- `shardlabs/starknet-devnet:0.2.5` - image for the amd64 architecture
+- `shardlabs/starknet-devnet:0.2.5-arm` - image for the arm64 architecture
 
 The server inside the container listens to the port 5050, which you need to publish to a desired `<PORT>` on your host machine:
 
@@ -466,6 +467,7 @@ If you are not satisfied with Devnet's performance, consider the following:
 
 - Make sure you are using the latest version of Devnet because new improvements are added regularly.
 - Try using [lite-mode](#lite-mode).
+- If minting tokens, set the [lite parameter](#mint-lite).
 - Using an [installed Devnet](#install) should be faster than [running it with Docker](#run-with-docker).
 - If you are [running Devnet with Docker](#run-with-docker) on an ARM machine (e.g. M1), make sure you are using [the appropriate image tag](#versions-and-tags)
 - If Devnet has been running for some time, try restarting it (either by killing it or by using the [restart functionality](#restart)).
