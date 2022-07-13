@@ -49,7 +49,8 @@ brew install gmp
 ## Disclaimer
 
 - Devnet should not be used as a replacement for Alpha testnet. After testing on Devnet, be sure to test on testnet (alpha-goerli)!
-- Specifying a block by its hash/number is not supported. All interaction is done with the latest block.
+- Specifying a block by its hash/number is not supported for contract calls. All interaction is done with the latest block.
+- There is no pending block. A new block is generated with each transaction.
 - Sending transactions with max_fee set to 0 is supported (not supported on alpha-mainnet or alpha-goerli).
 
 ## Run
