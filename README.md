@@ -432,8 +432,7 @@ Response:
 
 Other than using prefunded predeployed accounts, you can also add funds to an account that you deployed yourself.
 
-Mintable ETH Contract Address:
-`0x62230ea046a9a5fbc261ac77d03c8d41e5d442db2284587570ab46455fd2488L`
+The ERC20 contract used for minting ETH tokens and charging fees is at: `0x62230ea046a9a5fbc261ac77d03c8d41e5d442db2284587570ab46455fd2488`
 
 ### Mint with a transaction
 
