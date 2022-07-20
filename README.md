@@ -390,7 +390,7 @@ To get the code of the account (currently OpenZeppelin v0.2.1), use one of the f
 
 - `GET /get_code?contractAddress=<ACCOUNT_ADDRESS>`
 - [Starknet CLI](https://www.cairo-lang.org/docs/hello_starknet/cli.html#get-code): `starknet get_code --contract_address <ACCOUNT_ADDRESS> --feeder_gateway_url <DEVNET_URL>`
-- [OpenZeppelin's cairo-contract repository](https://github.com/OpenZeppelin/cairo-contracts/tree/v0.1.0)
+- [OpenZeppelin's cairo-contract repository](https://github.com/OpenZeppelin/cairo-contracts/tree/v0.2.1)
 
 You can use the accounts in e.g. [starknet-hardhat-plugin](https://github.com/Shard-Labs/starknet-hardhat-plugin) via:
 
