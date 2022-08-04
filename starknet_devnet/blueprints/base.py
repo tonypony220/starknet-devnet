@@ -154,3 +154,9 @@ async def mint():
         "unit": "wei",
         "tx_hash": tx_hash
     })
+
+@base.route("/create_block", methods=["POST"])
+async def create_block():
+    """Create empty block"""
+    block = await state.starknet_wrapper.create_empty_block()
+    return Response(block.dumps(), status=200, mimetype="application/json")
