@@ -46,7 +46,7 @@ def test_block_number_incremented():
     base_workflow()
 
 @devnet_in_background("--lite-mode")
-def test_block_number__incremented_in_lite_mode():
+def test_block_number_incremented_in_lite_mode():
     """Tests compatibility with lite mode"""
     base_workflow()
 
