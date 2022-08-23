@@ -1,214 +1,154 @@
 """
 Tests RPC blocks
 """
-
 from test.shared import GENESIS_BLOCK_NUMBER, INCORRECT_GENESIS_BLOCK_HASH
+
+import pytest
+from starknet_devnet.blueprints.rpc.structures.types import BlockNumberDict, BlockHashDict, rpc_txn_type
+from starknet_devnet.blueprints.rpc.utils import rpc_root
 from starknet_devnet.general_config import DEFAULT_GENERAL_CONFIG
 
-from .rpc_utils import rpc_call, get_block_with_transaction, pad_zero, gateway_call
+from .rpc_utils import rpc_call, pad_zero, gateway_call
 
 
-def test_get_block_by_number(deploy_info):
+@pytest.mark.usefixtures("run_devnet_in_background")
+@pytest.mark.parametrize("block_id", ["hash", "number", "tag"], indirect=True)
+def test_get_block_with_tx_hashes(deploy_info, gateway_block, block_id):
     """
-    Get block by number
+    Get block with tx hashes
     """
-    gateway_block: dict = get_block_with_transaction(
-        deploy_info["transaction_hash"])
     block_hash: str = gateway_block["block_hash"]
     block_number: int = gateway_block["block_number"]
-    new_root: str = gateway_block["state_root"]
+    new_root: str = rpc_root(gateway_block["state_root"])
 
     resp = rpc_call(
-        "starknet_getBlockByNumber", params={"block_number": block_number}
+        "starknet_getBlockWithTxHashes", params={"block_id": block_id}
     )
     block = resp["result"]
     transaction_hash: str = pad_zero(deploy_info["transaction_hash"])
 
-    assert block["block_hash"] == pad_zero(block_hash)
-    assert block["parent_hash"] == pad_zero(gateway_block["parent_block_hash"])
-    assert block["block_number"] == block_number
-    assert block["status"] == "ACCEPTED_ON_L2"
-    assert block["sequencer_address"] == hex(
-        DEFAULT_GENERAL_CONFIG.sequencer_address)
-    assert block["new_root"] == pad_zero(new_root)
-    assert block["transactions"] == [transaction_hash]
-
-
-# pylint: disable=unused-argument
-def test_get_block_by_number_raises_on_incorrect_number(deploy_info):
-    """
-    Get block by incorrect number
-    """
-    ex = rpc_call(
-        "starknet_getBlockByNumber", params={"block_number": 1234}
-    )
-
-    assert ex["error"] == {
-        "code": 26,
-        "message": "Invalid block number"
-    }
-
-
-def test_get_block_by_hash(deploy_info):
-    """
-    Get block by hash
-    """
-    gateway_block: dict = get_block_with_transaction(
-        deploy_info["transaction_hash"])
-    block_hash: str = gateway_block["block_hash"]
-    new_root: str = gateway_block["state_root"]
-    transaction_hash: str = pad_zero(deploy_info["transaction_hash"])
-
-    resp = rpc_call(
-        "starknet_getBlockByHash", params={"block_hash": block_hash}
-    )
-    block = resp["result"]
-
-    assert block["block_hash"] == pad_zero(block_hash)
-    assert block["parent_hash"] == pad_zero(gateway_block["parent_block_hash"])
-    assert block["block_number"] == gateway_block["block_number"]
-    assert block["status"] == "ACCEPTED_ON_L2"
-    assert block["sequencer_address"] == hex(
-        DEFAULT_GENERAL_CONFIG.sequencer_address)
-    assert block["new_root"] == pad_zero(new_root)
-    assert block["transactions"] == [transaction_hash]
-
-
-def test_get_block_by_hash_full_txn_scope(deploy_info):
-    """
-    Get block by hash with scope FULL_TXNS
-    """
-    block_hash: str = get_block_with_transaction(
-        deploy_info["transaction_hash"])["block_hash"]
-    transaction_hash: str = pad_zero(deploy_info["transaction_hash"])
-    contract_address: str = pad_zero(deploy_info["address"])
-
-    resp = rpc_call(
-        "starknet_getBlockByHash",
-        params={
-            "block_hash": block_hash,
-            "requested_scope": "FULL_TXNS"
-        }
-    )
-    block = resp["result"]
-
-    assert block["transactions"] == [{
-        "txn_hash": transaction_hash,
-        "max_fee": "0x0",
-        "contract_address": contract_address,
-        "calldata": [],
-        "entry_point_selector": None,
-        "signature": [],
-        "version": "0x0"
-    }]
-
-
-def test_get_block_by_hash_full_txn_and_receipts_scope(deploy_info):
-    """
-    Get block by hash with scope FULL_TXN_AND_RECEIPTS
-    """
-    block_hash: str = get_block_with_transaction(
-        deploy_info["transaction_hash"])["block_hash"]
-    transaction_hash: str = pad_zero(deploy_info["transaction_hash"])
-    contract_address: str = pad_zero(deploy_info["address"])
-
-    resp = rpc_call(
-        "starknet_getBlockByHash",
-        params={
-            "block_hash": block_hash,
-            "requested_scope": "FULL_TXN_AND_RECEIPTS"
-        }
-    )
-    block = resp["result"]
-
-    assert block["transactions"] == [{
-        "txn_hash": transaction_hash,
-        "max_fee": "0x0",
-        "contract_address": contract_address,
-        "calldata": [],
-        "entry_point_selector": None,
-        "signature": [],
-        "version": "0x0",
-        "actual_fee": "0x0",
+    assert block == {
+        "block_hash": pad_zero(block_hash),
+        "parent_hash": pad_zero(gateway_block["parent_block_hash"]),
+        "block_number": block_number,
         "status": "ACCEPTED_ON_L2",
-        "statusData": None,
-    }]
+        "sequencer_address": pad_zero(hex(DEFAULT_GENERAL_CONFIG.sequencer_address)),
+        "new_root": pad_zero(new_root),
+        "timestamp": gateway_block["timestamp"],
+        "transactions": [transaction_hash],
+    }
 
 
-def test_get_block_by_hash_raises_on_incorrect_hash(deploy_info):
+@pytest.mark.usefixtures("run_devnet_in_background", "deploy_info")
+@pytest.mark.parametrize("block_id", [BlockNumberDict(block_number=1234),
+                                      BlockHashDict(block_hash=pad_zero(INCORRECT_GENESIS_BLOCK_HASH))])
+def test_get_block_with_tx_hashes_raises_on_incorrect_block_id(block_id):
     """
-    Get block by incorrect hash
+    Get block with tx hashes by incorrect block_id
     """
     ex = rpc_call(
-        "starknet_getBlockByHash", params={"block_hash": INCORRECT_GENESIS_BLOCK_HASH}
+        "starknet_getBlockWithTxHashes", params={"block_id": block_id}
     )
 
     assert ex["error"] == {
         "code": 24,
-        "message": "Invalid block hash"
+        "message": "Invalid block id"
     }
 
 
-def test_get_block_transaction_count_by_hash(deploy_info):
+@pytest.mark.usefixtures("run_devnet_in_background", "deploy_info")
+@pytest.mark.parametrize("block_id", ["hash", "number", "tag"], indirect=True)
+def test_get_block_with_txs(gateway_block, block_id):
     """
-    Get count of transactions in block by block hash
+    Get block with txs by block id
     """
-    block = get_block_with_transaction(deploy_info["transaction_hash"])
-    block_hash: str = block["block_hash"]
+    block_hash: str = gateway_block["block_hash"]
+    block_number: int = gateway_block["block_number"]
+    new_root: str = rpc_root(gateway_block["state_root"])
+    block_tx = gateway_block["transactions"][0]
 
     resp = rpc_call(
-        "starknet_getBlockTransactionCountByHash", params={"block_hash": block_hash}
+        "starknet_getBlockWithTxs", params={"block_id": block_id}
+    )
+    block = resp["result"]
+
+    assert block == {
+        "block_hash": pad_zero(block_hash),
+        "parent_hash": pad_zero(gateway_block["parent_block_hash"]),
+        "block_number": block_number,
+        "status": "ACCEPTED_ON_L2",
+        "sequencer_address": pad_zero(hex(DEFAULT_GENERAL_CONFIG.sequencer_address)),
+        "new_root": pad_zero(new_root),
+        "timestamp": gateway_block["timestamp"],
+        "transactions": [
+            {
+                "class_hash": pad_zero(block_tx["class_hash"]),
+                "constructor_calldata": [pad_zero(data) for data in block_tx["constructor_calldata"]],
+                "contract_address": pad_zero(block_tx["contract_address"]),
+                "contract_address_salt": pad_zero(block_tx["contract_address_salt"]),
+                "transaction_hash": pad_zero(block_tx["transaction_hash"]),
+                "type": rpc_txn_type(block_tx["type"]),
+                "version": "0x0",
+            }
+        ],
+    }
+
+
+@pytest.mark.usefixtures("run_devnet_in_background", "deploy_info")
+@pytest.mark.parametrize("block_id", [BlockNumberDict(block_number=1234),
+                                      BlockHashDict(block_hash=pad_zero(INCORRECT_GENESIS_BLOCK_HASH))])
+def test_get_block_with_txs_raises_on_incorrect_block_id(block_id):
+    """
+    Get block with txs by incorrect block_id
+    """
+    ex = rpc_call(
+        "starknet_getBlockWithTxHashes", params={"block_id": block_id}
+    )
+
+    assert ex["error"] == {
+        "code": 24,
+        "message": "Invalid block id"
+    }
+
+
+@pytest.mark.usefixtures("run_devnet_in_background", "deploy_info", "gateway_block")
+@pytest.mark.parametrize("block_id", ["hash", "number", "tag"], indirect=True)
+def test_get_block_transaction_count(block_id):
+    """
+    Get count of transactions in block by block id
+    """
+    if "block_number" in block_id:
+        block_id["block_number"] = GENESIS_BLOCK_NUMBER + 1
+
+    resp = rpc_call(
+        "starknet_getBlockTransactionCount", params={"block_id": block_id}
     )
     count = resp["result"]
 
     assert count == 1
 
 
-def test_get_block_transaction_count_by_hash_raises_on_incorrect_hash(deploy_info):
+@pytest.mark.usefixtures("run_devnet_in_background", "deploy_info")
+@pytest.mark.parametrize("block_id", [BlockNumberDict(block_number=99999),
+                                      BlockHashDict(block_hash=pad_zero(INCORRECT_GENESIS_BLOCK_HASH))])
+def test_get_block_transaction_count_raises_on_incorrect_block_id(block_id):
     """
-    Get count of transactions in block by incorrect block hash
+    Get count of transactions in block by incorrect block id
     """
     ex = rpc_call(
-        "starknet_getBlockTransactionCountByHash", params={"block_hash": INCORRECT_GENESIS_BLOCK_HASH}
+        "starknet_getBlockTransactionCount", params={"block_id": block_id}
     )
 
     assert ex["error"] == {
         "code": 24,
-        "message": "Invalid block hash"
+        "message": "Invalid block id"
     }
 
 
-def test_get_block_transaction_count_by_number(deploy_info):
+@pytest.mark.usefixtures("run_devnet_in_background", "deploy_info")
+def test_get_block_number():
     """
-    Get count of transactions in block by block number
-    """
-    block_number: int = GENESIS_BLOCK_NUMBER + 1
-
-    resp = rpc_call(
-        "starknet_getBlockTransactionCountByNumber", params={"block_number": block_number}
-    )
-    count = resp["result"]
-
-    assert count == 1
-
-
-def test_get_block_transaction_count_by_number_raises_on_incorrect_number(deploy_info):
-    """
-    Get count of transactions in block by incorrect block number
-    """
-    ex = rpc_call(
-        "starknet_getBlockTransactionCountByNumber", params={"block_number": 99999}
-    )
-
-    assert ex["error"] == {
-        "code": 26,
-        "message": "Invalid block number"
-    }
-
-
-def test_get_block_number(deploy_info):
-    """
-    Get the number of the latest accepted  block
+    Get the number of the latest accepted block
     """
 
     latest_block = gateway_call("get_block", blockNumber="latest")

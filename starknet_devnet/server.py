@@ -18,7 +18,7 @@ from .blueprints.base import base
 from .blueprints.gateway import gateway
 from .blueprints.feeder_gateway import feeder_gateway
 from .blueprints.postman import postman
-from .blueprints.rpc import rpc
+from .blueprints.rpc.routes import rpc
 from .state import state
 from .devnet_config import DevnetConfig, DumpOn, parse_args
 
