@@ -30,7 +30,7 @@ from .account import (
 
 INVOKE_CONTENT = load_file_content("invoke.json")
 DEPLOY_CONTENT = load_file_content("deploy.json")
-ACCOUNT_ADDRESS = "0x056eae9186bb1b937e8552c81b9838b9249d66008e2ab5783cc1dff5617fb19e"
+ACCOUNT_ADDRESS = "0x0555a7156bd44a6c4dba0cf819b8afe8dfdca5ec4cf56a8f5021d02752e63660"
 INVALID_HASH = "0x58d4d4ed7580a7a98ab608883ec9fe722424ce52c19f2f369eeea301f535914"
 SALT = "0x99"
 
