@@ -103,7 +103,7 @@ Check that it's alive by running the following (address and port my vary if you 
 curl http://127.0.0.1:5050/is_alive
 ```
 
-### Run with Docker
+## Run with Docker
 
 Devnet is available as a Docker image `shardlabs/starknet-devnet` ([Docker Hub link](https://hub.docker.com/repository/docker/shardlabs/starknet-devnet)). Fetch it by running:
 
@@ -111,7 +111,7 @@ Devnet is available as a Docker image `shardlabs/starknet-devnet` ([Docker Hub l
 docker pull shardlabs/starknet-devnet:<TAG>
 ```
 
-#### Versions and Tags
+### Versions and Tags
 
 Devnet versions, as tracked on [PyPI](https://pypi.org/project/starknet-devnet/#history), are also the tags for the corresponding images:
 
@@ -121,29 +121,39 @@ The latest stable version is also available as:
 
 - `shardlabs/starknet-devnet:latest`
 
-Each commit of the `master` branch of this repository is available as an image tagged with the commit hash (the full 40-hex-digits SHA1 digest):
+Commits to the `master` branch of this repository are mostly available as images tagged with their commit hash (the full 40-hex-digits SHA1 digest):
 
 - `shardlabs/starknet-devnet:<COMMIT_HASH>`
 
-The last commit is also the candidate for the next release, so it is available as:
+The last commit is also a candidate for the next release, so it is available as:
 
 - `shardlabs/starknet-devnet:next`
 
-So far, all listed tags referred to images built for the linux/amd64 architecture. To use arm64 images, append `-arm` to the tag. E.g.:
+So far, all listed tags referred to images built for the linux/amd64 architecture. To use arm64-compatible images, append `-arm` to the tag. E.g.:
 
 - `shardlabs/starknet-devnet:<VERSION>-arm`
 - `shardlabs/starknet-devnet:latest-arm`
 
-By appending the `-seed0` suffix, you can access images which [predeploy funded accounts](#predeployed-accounts) with `--seed 0`, thus always deploying the same set of accounts. E.g.:
+By appending the `-seed0` suffix, you can use images which [predeploy funded accounts](#predeployed-accounts) with `--seed 0`, thus always deploying the same set of accounts. E.g.:
 
 - `shardlabs/starknet-devnet:<VERSION>-seed0`
 - `shardlabs/starknet-devnet:latest-seed0`
 - `shardlabs/starknet-devnet:next-seed0`
 - `shardlabs/starknet-devnet:<VERSION>-arm-seed0`
 
-#### Container port publishing
+### Container port publishing
 
-The server inside the container listens to the port 5050, which you need to publish to a desired `<PORT>` on your host machine:
+#### Linux
+
+If on a Linux host machine, you can use [`--network host`](https://docs.docker.com/network/host/). This way, the port used internally by the container is also available on your host machine. The `--port` option also has effect.
+
+```text
+docker run --network host shardlabs/starknet-devnet [--port <PORT>]
+```
+
+#### Mac, Windows
+
+If not on Linux, you need to publish the container's internally used port to a desired `<PORT>` on your host machine. The internal port is `5050` by default (can be overriden with `--port`).
 
 ```text
 docker run -p [HOST:]<PORT>:5050 shardlabs/starknet-devnet
