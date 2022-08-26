@@ -94,8 +94,7 @@ class StarknetWrapper:
         self.__update_block_number()
         state_update = await self.__update_state()
         state = self.get_state()
-        state_root = self.__get_state_root()
-        return self.blocks.generate_empty(state, state_root, state_update)
+        return await self.blocks.generate(None, state, state_update, is_empty_block=True)
 
     async def __preserve_current_state(self, state: CarriedState):
         self.__current_carried_state = deepcopy(state)
@@ -144,9 +143,6 @@ class StarknetWrapper:
 
         return None
 
-    def __get_state_root(self):
-        return self.get_state().state.shared_state.contract_states.root
-
     def store_contract(self,
         address: int, contract: StarknetContract, contract_class: ContractClass, tx_hash: int = None):
         """Store the provided data sa wrapped contract"""
@@ -160,18 +156,15 @@ class StarknetWrapper:
         Stores the provided data as a deploy transaction in `self.transactions`.
         Generates a new block
         """
-
         if transaction.status == TransactionStatus.REJECTED:
             assert error_message, "error_message must be present if tx rejected"
             transaction.set_failure_reason(error_message)
         else:
             state = self.get_state()
-            state_root = self.__get_state_root()
 
             block = await self.blocks.generate(
                 transaction,
                 state,
-                state_root,
                 state_update=state_update,
             )
             transaction.set_block(block=block)
