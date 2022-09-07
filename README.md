@@ -386,11 +386,7 @@ Response:
 
 ## Lite mode
 
-To improve Devnet performance, instead of calculating the actual hash of deployment transactions and blocks, sequential numbering can be used (0x0, 0x1, 0x2, ...).
-
-Consider passing this CLI flag on Devnet startup:
-
-- `--lite-mode` enables optimizations
+Since Devnet 0.3.0, the effect of lite mode is minimal and currently only skips block hash calculation (replacing it with iterative numbering: `0x0`, `0x1`, `0x2`, ...). Activate it by passing `--lite-mode` on startup.
 
 ## Restart
 
