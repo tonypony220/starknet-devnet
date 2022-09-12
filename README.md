@@ -92,7 +92,7 @@ optional arguments:
                         Specify the gas price in wei per gas unit; defaults to
                         1e+11
   --timeout TIMEOUT, -t TIMEOUT
-                        Specify the timeout for devnet server; defaults to 60 seconds
+                        Specify the server timeout in seconds; defaults to 60
 ```
 
 You can run `starknet-devnet` in a separate shell, or you can run it in background with `starknet-devnet &`.
