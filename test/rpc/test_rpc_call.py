@@ -96,7 +96,7 @@ def test_call_raises_on_invalid_calldata(deploy_info, calldata):
         },
     )
 
-    assert ex["error"] == {"code": 22, "message": "Invalid calldata"}
+    assert ex["error"] == {"code": 22, "message": "Invalid call data"}
 
 
 @pytest.mark.usefixtures("run_devnet_in_background")
@@ -122,3 +122,10 @@ def test_call_raises_on_incorrect_block_hash(deploy_info):
         "code": -1,
         "message": "Calls with block_id != 'latest' are not supported currently.",
     }
+
+
+@pytest.mark.usefixtures("run_devnet_in_background")
+def test_call_with_invalid_method():
+    """Call with an invalid method"""
+    ex = rpc_call(method="obviously_invalid_method", params={})
+    assert ex["error"] == {"code": -32601, "message": "Method not found"}
