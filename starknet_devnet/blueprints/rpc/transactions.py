@@ -3,7 +3,7 @@ RPC transaction endpoints
 """
 
 import dataclasses
-from typing import List, Optional
+from typing import List
 
 from marshmallow.exceptions import MarshmallowError
 from starkware.starknet.services.api.contract_class import ContractClass
@@ -106,10 +106,10 @@ async def pending_transactions() -> List[RpcTransaction]:
 
 async def add_invoke_transaction(
     function_invocation: FunctionCall,
+    signature: List[Felt],
     max_fee: NumAsHex,
     version: NumAsHex,
     nonce: NumAsHex = None,
-    signature: Optional[List[Felt]] = None,
 ) -> dict:
     """
     Submit a new transaction to be added to the chain
