@@ -313,6 +313,7 @@ def test_add_invoke_transaction(invoke_content):
     assert set(receipt.keys()) == {"transaction_hash"}
     assert receipt["transaction_hash"][:3] == "0x0"
 
+
 @pytest.mark.usefixtures("run_devnet_in_background")
 def test_add_invoke_transaction_positional_args(invoke_content):
     """
@@ -339,6 +340,7 @@ def test_add_invoke_transaction_positional_args(invoke_content):
 
     assert set(receipt.keys()) == {"transaction_hash"}
     assert receipt["transaction_hash"][:3] == "0x0"
+
 
 @pytest.mark.usefixtures("run_devnet_in_background")
 def test_add_declare_transaction_on_incorrect_contract(declare_content):
