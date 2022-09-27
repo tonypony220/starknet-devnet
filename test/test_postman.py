@@ -17,19 +17,20 @@ from .util import (
     deploy,
     devnet_in_background,
     ensure_server_alive,
-    estimate_message_fee,
     load_file_content,
     terminate_and_wait,
 )
 from .settings import APP_URL, L1_HOST, L1_PORT, L1_URL
 from .shared import (
-    L1L2_ABI_PATH,
-    L1L2_CONTRACT_PATH,
+    ARTIFACTS_PATH,
     PREDEPLOY_ACCOUNT_CLI_ARGS,
     PREDEPLOYED_ACCOUNT_ADDRESS,
     PREDEPLOYED_ACCOUNT_PRIVATE_KEY,
 )
 from .web3_util import web3_call, web3_deploy, web3_transact
+
+CONTRACT_PATH = f"{ARTIFACTS_PATH}/l1l2.cairo/l1l2.json"
+ABI_PATH = f"{ARTIFACTS_PATH}/l1l2.cairo/l1l2_abi.json"
 
 ETH_CONTRACTS_PATH = "artifacts/contracts/solidity"
 STARKNET_MESSAGING_PATH = (
@@ -163,7 +164,7 @@ def load_messaging_contract(starknet_messaging_contract_address):
 def _init_l2_contract(l1l2_example_contract_address: str):
     """Deploys the L1L2Example cairo contract, returns the result of calling 'get_balance'"""
 
-    deploy_info = deploy(L1L2_CONTRACT_PATH)
+    deploy_info = deploy(CONTRACT_PATH)
     l2_address = deploy_info["address"]
 
     # increase and withdraw balance
@@ -199,8 +200,8 @@ def _init_l2_contract(l1l2_example_contract_address: str):
     value = call(
         function="get_balance",
         address=deploy_info["address"],
-        abi_path=L1L2_ABI_PATH,
-        inputs=[str(USER_ID)],
+        abi_path=ABI_PATH,
+        inputs=[USER_ID],
     )
 
     assert value == "2333"
@@ -231,19 +232,11 @@ def _l1_l2_message_exchange(web3, l1l2_example_contract, l2_contract_address):
     l2_balance = call(
         function="get_balance",
         address=l2_contract_address,
-        abi_path=L1L2_ABI_PATH,
-        inputs=[str(USER_ID)],
+        abi_path=ABI_PATH,
+        inputs=[USER_ID],
     )
-    assert l2_balance == "2333"
 
-    message_fee = estimate_message_fee(
-        from_address=l1l2_example_contract.address,
-        function="deposit",
-        inputs=[str(USER_ID), "100"],
-        to_address=l2_contract_address,
-        abi_path=L1L2_ABI_PATH
-    )
-    assert int(message_fee) > 0
+    assert l2_balance == "2333"
 
     # deposit in l1 and assert contract balance
     web3_transact(
@@ -282,8 +275,8 @@ def _l1_l2_message_exchange(web3, l1l2_example_contract, l2_contract_address):
     l2_balance = call(
         function="get_balance",
         address=l2_contract_address,
-        abi_path=L1L2_ABI_PATH,
-        inputs=[str(USER_ID)],
+        abi_path=ABI_PATH,
+        inputs=[USER_ID],
     )
 
     assert l2_balance == "2933"

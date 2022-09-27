@@ -8,9 +8,9 @@ from starkware.starknet.public.abi import get_selector_from_name
 
 
 from starknet_devnet.constants import DEFAULT_GAS_PRICE
-from .util import call, deploy, devnet_in_background, estimate_message_fee, load_file_content
+from .util import deploy, devnet_in_background, load_file_content
 from .settings import APP_URL
-from .shared import CONTRACT_PATH, EXPECTED_CLASS_HASH, L1L2_ABI_PATH, L1L2_CONTRACT_PATH, PREDEPLOY_ACCOUNT_CLI_ARGS
+from .shared import CONTRACT_PATH, EXPECTED_CLASS_HASH
 
 DEPLOY_CONTENT = load_file_content("deploy.json")
 INVOKE_CONTENT = load_file_content("invoke.json")
@@ -165,30 +165,3 @@ def test_simulate_transaction():
         },
         "signature": [],
     }
-
-
-@devnet_in_background(*PREDEPLOY_ACCOUNT_CLI_ARGS)
-def test_estimate_message_fee():
-    """Estimate message fee from l1 to l2"""
-
-    dummy_l1_address = "0x1"
-    user_id = "1"
-
-    l2_contract_address = deploy(contract=L1L2_CONTRACT_PATH)["address"]
-
-    message_fee = estimate_message_fee(
-        from_address=dummy_l1_address,
-        function="deposit",
-        inputs=[user_id, "100"],
-        to_address=l2_contract_address,
-        abi_path=L1L2_ABI_PATH
-    )
-    assert int(message_fee) > 0
-
-    balance = call(
-        function="get_balance",
-        address=l2_contract_address,
-        abi_path=L1L2_ABI_PATH,
-    )
-
-    assert int(balance) == 0
