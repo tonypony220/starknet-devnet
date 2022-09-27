@@ -619,9 +619,15 @@ poetry run starknet-devnet
 
 When running tests locally, do it from the project root:
 
-```bash
-./scripts/compile_contracts.sh # first generate the artifacts
+First generate the artifacts:
 
+```bash
+./scripts/compile_contracts.sh
+```
+
+Use one of the testing commands:
+
+```bash
 ./scripts/test.sh [TEST_CASE] # parallelized testing - using auto detected number of CPU cores
 
 poetry run pytest -s -v test/ # for more verbose output
