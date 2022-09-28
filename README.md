@@ -675,3 +675,39 @@ You don't need to build anything to be able to run locally, but if you need the 
 ```text
 poetry build
 ```
+
+### Development - Version release
+
+You can check the current version on master with these commands:
+```
+git checkout master
+poetry version
+```
+
+To update the version use:
+```
+poetry version <VERSION>
+```
+or any other variation of that [command](https://python-poetry.org/docs/cli/#version)
+
+In file `/starknet_devnet/__init__.py` you need to manually update the version:
+```
+__version__ = "<VERSION>"
+```
+
+If you did everything correctly these commands should result with the same version:
+```
+poetry version
+poetry run starknet-devnet --version
+```
+
+Later, you need to add a tag to the version update commit (Notice the `v`):
+```
+git tag v<VERSION>
+git push origin v<VERSION>
+```
+
+Lastly:
+- check if CI and image publish worked after commit
+- need to generate release notes with the corresponding tag version on GitHub
+- inform users on telegram, devnet channel in starkware discord, and [Starknet Shamans](https://community.starknet.io/t/starknet-devnet/69).
