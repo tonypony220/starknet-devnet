@@ -1,4 +1,8 @@
-## Introduction
+<!-- logo / title -->
+<p align="center" style="margin-bottom: 0px !important">
+  <img width="250" src="https://user-images.githubusercontent.com/2848732/193063564-31313189-fe30-4894-96e0-a50657dd0116.png" alt="Devnet" align="center">
+</p>
+<h1 align="center" style="margin-top: 0px !important">Starknet Devnet</h1>
 
 A Flask wrapper of Starknet state. Similar in purpose to Ganache.
 
