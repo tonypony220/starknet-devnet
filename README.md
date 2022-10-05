@@ -644,6 +644,8 @@ poetry run pytest test/<TEST_FILE> # for a single file
 poetry run pytest test/<TEST_FILE>::<TEST_CASE> # for a single test case
 ```
 
+In case of problems with `test_postman` test on Mac please see https://stackoverflow.com/a/52230415.
+
 ### Development - Check versioning consistency
 
 ```
