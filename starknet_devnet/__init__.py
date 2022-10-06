@@ -9,7 +9,7 @@ from starkware.starknet.services.api.contract_class import ContractClass
 from crypto_cpp_py.cpp_bindings import cpp_hash
 
 
-__version__ = "0.3.2"
+__version__ = "0.3.3"
 
 
 def patched_pedersen_hash(left: int, right: int) -> int:
