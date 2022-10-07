@@ -54,7 +54,7 @@ const config = {
         title: 'Starknet Devnet',
         logo: {
           alt: 'starknet-devnet Logo',
-          src: 'img/logo.svg',
+          src: 'https://user-images.githubusercontent.com/2848732/193076972-da6fa36e-11f7-4cb3-aa29-673224f8576d.png',
         },
         items: [
           {
