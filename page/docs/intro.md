@@ -14,7 +14,7 @@ Let's discover **[starknet-devnet](https://github.com/Shard-Labs/starknet-devnet
 - Sending transactions with max_fee set to 0 is supported (not supported on alpha-mainnet or alpha-goerli).
 - Devnet is currently being adapted to Starknet and Cairo v0.10.0, if you spot any issues, please [report them](https://github.com/Shard-Labs/starknet-devnet/issues/new/choose).
 
-### Requirements
+## Requirements
 
 Works with Python versions >=3.8 and <3.10.
 
@@ -36,3 +36,7 @@ brew install gmp
 ```bash
 pip install starknet-devnet
 ```
+
+### Windows installation
+
+Follow this guide: https://www.spaceshard.io/blog/starknet-devnet-windows-tutorial
