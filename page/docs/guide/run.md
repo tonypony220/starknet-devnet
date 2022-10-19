@@ -7,41 +7,39 @@ sidebar_position: 1
 Installing the package adds the `starknet-devnet` command.
 
 ```text
-usage: starknet-devnet [-h] [-v] [--host HOST] [--port PORT]
+usage: starknet-devnet [-h] [-v] [--host HOST] [--port PORT] [--load-path LOAD_PATH] [--dump-path DUMP_PATH] [--dump-on DUMP_ON] [--lite-mode] [--accounts ACCOUNTS]
+                       [--initial-balance INITIAL_BALANCE] [--seed SEED] [--hide-predeployed-accounts] [--start-time START_TIME] [--gas-price GAS_PRICE] [--timeout TIMEOUT]
+                       [--account-class ACCOUNT_CLASS]
 
 Run a local instance of Starknet Devnet
 
 optional arguments:
   -h, --help            show this help message and exit
   -v, --version         Print the version
-  --host HOST           Specify the address to listen at; defaults to
-                        127.0.0.1 (use the address the program outputs on
-                        start)
+  --host HOST           Specify the address to listen at; defaults to 127.0.0.1 (use the address the program outputs on start)
   --port PORT, -p PORT  Specify the port to listen at; defaults to 5050
   --load-path LOAD_PATH
-                        Specify the path from which the state is loaded on
-                        startup
+                        Specify the path from which the state is loaded on startup
   --dump-path DUMP_PATH
                         Specify the path to dump to
   --dump-on DUMP_ON     Specify when to dump; can dump on: exit, transaction
   --lite-mode           Introduces speed-up by skipping block hash and deploy transaction hash calculation - applies sequential numbering instead (0x0, 0x1, 0x2, ...).
-  --accounts ACCOUNTS   Specify the number of accounts to be predeployed;
-                        defaults to 10
+  --accounts ACCOUNTS   Specify the number of accounts to be predeployed; defaults to 10
   --initial-balance INITIAL_BALANCE, -e INITIAL_BALANCE
-                        Specify the initial balance of accounts to be
-                        predeployed; defaults to 1e+21 (wei)
-  --seed SEED           Specify the seed for randomness of accounts to be
-                        predeployed
+                        Specify the initial balance of accounts to be predeployed; defaults to 1e+21
+  --seed SEED           Specify the seed for randomness of accounts to be predeployed
   --hide-predeployed-accounts
                         Prevents from printing the predeployed accounts details
   --start-time START_TIME
-                        Specify the start time of the genesis block in Unix
-                        time seconds
+                        Specify the start time of the genesis block in Unix time seconds
   --gas-price GAS_PRICE, -g GAS_PRICE
-                        Specify the gas price in wei per gas unit; defaults to
-                        1e+11
+                        Specify the gas price in wei per gas unit; defaults to 1e+11
   --timeout TIMEOUT, -t TIMEOUT
-                        Specify the timeout for devnet server; defaults to 60 seconds
+                        Specify the server timeout in seconds; defaults to 60
+  --account-class ACCOUNT_CLASS
+                        Specify the account implementation to be used for predeploying;
+                        should be a path to the compiled JSON artifact;
+                        defaults to a fork of OpenZeppelin v0.4.0b
 ```
 
 You can run `starknet-devnet` in a separate shell, or you can run it in background with `starknet-devnet &`.

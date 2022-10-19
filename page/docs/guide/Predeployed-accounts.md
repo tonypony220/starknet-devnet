@@ -21,6 +21,15 @@ const account = await starknet.getAccountFromAddress(
   "OpenZeppelin"
 );
 ```
+
+## Custom implementation
+
+To make the predeployed accounts use an account implementation of your choice, you can provide the path to a contract compilation artifact:
+
+```bash
+starknet-devnet --account-class path/to/my/account.json
+```
+
 ## Fetch predeployed accounts
 
 ```
