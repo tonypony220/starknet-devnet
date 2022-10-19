@@ -130,7 +130,7 @@ async def add_invoke_transaction(
     )
 
     _, transaction_hash = await state.starknet_wrapper.invoke(
-        invoke_function=invoke_function
+        external_tx=invoke_function
     )
     return RpcInvokeTransactionResult(
         transaction_hash=rpc_felt(transaction_hash),
@@ -165,7 +165,7 @@ async def add_declare_transaction(
     )
 
     class_hash, transaction_hash = await state.starknet_wrapper.declare(
-        declare_transaction=declare_transaction
+        external_tx=declare_transaction
     )
     return RpcDeclareTransactionResult(
         transaction_hash=rpc_felt(transaction_hash),

@@ -58,13 +58,15 @@ poetry run pytest test/<TEST_FILE>::<TEST_CASE> # for a single test case
 ./scripts/check_versions.sh
 ```
 
-## Development - Working with a local version of cairo-lang
+## Development - Working with an archive of cairo-lang
 
-In `pyproject.toml` under `[tool.poetry.dependencies]` specify
+If you know the URL of the archive (e.g. ZIP) of a new cairo-lang version, you can install it with
 
 ```
-cairo-lang = { path = "your-cairo-lang-package.zip" }
+poetry add <URL>
 ```
+
+After adding a new cairo-lang version, you will probably want to recompile contract artifacts.
 
 ## Development - Updating accounts
 
