@@ -29,7 +29,6 @@ poetry run starknet-devnet
 ./scripts/lint.sh
 ```
 
-
 ## Development - Test
 
 When running tests locally, do it from the project root:
@@ -96,35 +95,48 @@ poetry build
 ## Development - Version release
 
 You can check the current version on master with these commands:
+
 ```
 git checkout master
 poetry version
 ```
 
 To update the version use:
+
 ```
 poetry version <VERSION>
 ```
+
 or any other variation of that [command](https://python-poetry.org/docs/cli/#version)
 
 In file `/starknet_devnet/__init__.py` you need to manually update the version:
+
 ```
 __version__ = "<VERSION>"
 ```
 
 If you did everything correctly these commands should result with the same version:
+
 ```
 poetry version
 poetry run starknet-devnet --version
 ```
 
 Later, add a tag to the version update commit (Notice the `v`):
+
 ```
 git tag v<VERSION>
 git push origin v<VERSION>
 ```
 
+The documentation needs to be generated (assuming automatic doc deployment hasn't been implemented):
+
+```
+cd page && npm run deploy
+```
+
 Lastly:
-- check if CI and image publish worked after commit
-- generate release notes with the corresponding tag version on GitHub
-- inform users on telegram, devnet channel in starkware discord, and [Starknet Shamans](https://community.starknet.io/t/starknet-devnet/69).
+
+- Check if CI and image publish worked after commit
+- Generate release notes with the corresponding tag version on GitHub
+- Inform users on Telegram, [Discord Devnet channel](https://discord.com/channels/793094838509764618/985824027950055434), and [Starknet Shamans](https://community.starknet.io/t/starknet-devnet/69).
