@@ -54,6 +54,7 @@ from starkware.starknet.services.api.feeder_gateway.response_objects import (
     StateDiff,
     StorageEntry,
 )
+from starkware.starkware_utils.error_handling import StarkErrorCode
 
 from starknet_devnet.util import to_bytes, get_fee_estimation_info
 from starknet_devnet.constants import DUMMY_STATE_ROOT, OZ_ACCOUNT_CLASS_HASH
@@ -566,7 +567,9 @@ class StarknetWrapper:
             )
         except AssertionError as error:
             raise StarknetDevnetException(
-                status_code=400, message="Invalid format of fee estimation request"
+                code=StarkErrorCode.MALFORMED_REQUEST,
+                status_code=400,
+                message="Invalid format of fee estimation request",
             ) from error
 
         execution_info = await internal_tx.apply_state_updates(
