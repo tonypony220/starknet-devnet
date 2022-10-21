@@ -8,11 +8,15 @@ from starknet_devnet.blueprints.rpc.structures.types import (
     BlockId,
     Felt,
     Address,
+    RpcError,
 )
 from starknet_devnet.blueprints.rpc.structures.responses import (
     RpcEventsResult,
 )
-
+from starknet_devnet.blueprints.rpc.utils import (
+    assert_block_id_is_latest_or_pending,
+    rpc_felt,
+)
 from starknet_devnet.state import state
 
 
@@ -98,11 +102,17 @@ async def get_events(
     )
 
 
-async def get_nonce(contract_address: Address) -> Felt:
+async def get_nonce(block_id: BlockId, contract_address: Address) -> Felt:
     """
-    Get the latest nonce associated with the given address
+    Get the nonce associated with the given address in the given block
     """
+    assert_block_id_is_latest_or_pending(block_id)
+
+    if not state.starknet_wrapper.contracts.is_deployed(int(contract_address, 16)):
+        raise RpcError(code=20, message="Contract not found")
+
     result = await state.starknet_wrapper.get_nonce(
         contract_address=int(contract_address, 16)
     )
-    return hex(result)
+
+    return rpc_felt(result)

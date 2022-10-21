@@ -1,6 +1,7 @@
 """
 RPC utilities
 """
+from typing import Union
 
 from starknet_devnet.blueprints.rpc.structures.types import (
     BlockId,
@@ -27,7 +28,7 @@ def block_tag_to_block_number(block_id: BlockId) -> BlockId:
                 message="Calls with block_id == 'pending' are not supported currently.",
             )
 
-        raise RpcError(code=24, message="Invalid block id")
+        raise RpcError(code=24, message="Block not found")
 
     return block_id
 
@@ -48,7 +49,7 @@ def get_block_by_block_id(block_id: BlockId) -> dict:
             block_number=block_id["block_number"]
         )
     except StarknetDevnetException as ex:
-        raise RpcError(code=24, message="Invalid block id") from ex
+        raise RpcError(code=24, message="Block not found") from ex
 
 
 def assert_block_id_is_latest_or_pending(block_id: BlockId) -> None:
@@ -82,22 +83,17 @@ def assert_block_id_is_latest_or_pending(block_id: BlockId) -> None:
     )
 
 
-def rpc_felt(value: int) -> Felt:
+def rpc_felt(value: Union[int, str]) -> Felt:
     """
-    Convert integer to 0x0 prefixed felt
+    Convert value to 0x0 prefixed felt
+    The value can be base 10 integer, base 10 string or base 16 string
     """
+    if isinstance(value, str):
+        value = int(value) if value.isnumeric() else int(value, 16)
+
     if value == 0:
         return "0x00"
     return "0x0" + hex(value).lstrip("0x")
-
-
-def pad_zero(felt: str) -> Felt:
-    """
-    Convert felt with format `0xValue` to format `0x0Value`
-    """
-    if felt == "0x0":
-        return "0x00"
-    return "0x0" + felt.lstrip("0x")
 
 
 def rpc_root(root: str) -> Felt:

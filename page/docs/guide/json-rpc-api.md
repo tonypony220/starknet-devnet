@@ -4,7 +4,7 @@ sidebar_position: 3
 
 # JSON-RPC API
 
-Devnet also partially supports JSON-RPC API v0.1.0: [**specifications**](https://github.com/starkware-libs/starknet-specs/releases/tag/v0.1.0) . It can be reached under `/rpc`. For an example:
+Devnet also supports JSON-RPC API v0.2.0: [specifications](https://github.com/starkware-libs/starknet-specs/releases/tag/v0.2.0) . It can be reached under `/rpc`. For an example:
 
 ```
 POST /rpc
@@ -27,10 +27,6 @@ Response:
   "result": 1
 }
 ```
-
-Methods currently not supported:
-
-- `starknet_protocolVersion` - will be removed in a future version of the specification
 
 Methods that require a `block_id` only support ids of the `latest` or `pending` block.
 Please note however, that the `pending` block will be the same block as the `latest`.
