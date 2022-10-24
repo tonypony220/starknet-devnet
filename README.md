@@ -6,7 +6,7 @@
 
 A Flask wrapper of Starknet state. Similar in purpose to Ganache.
 
-Aims to mimic Starknet's Alpha testnet, but with simplified functionality.
+Aims to mimic StarkNet's Alpha testnet, but with simplified functionality.
 
 ## 🌐 Docs
 
