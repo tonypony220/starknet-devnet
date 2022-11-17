@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "starknet_devnet"
-version = "0.3.5"
+version = "0.4.0"
 description = "A local testnet for Starknet"
 authors = ["FabijanC <fabijan.corak@gmail.com>"]
 license = "ISC"
