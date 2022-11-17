@@ -8,10 +8,11 @@ import os
 import re
 import subprocess
 import time
-from typing import List
+from typing import IO, List
 import requests
 
 from starkware.starknet.cli.starknet_cli import get_salt
+from starkware.starknet.definitions.error_codes import StarknetErrorCode
 from starkware.starknet.definitions.transaction_type import TransactionType
 from starkware.starknet.services.api.contract_class import ContractClass
 from starkware.starknet.services.api.gateway.transaction import Deploy
@@ -37,6 +38,8 @@ def run_devnet_in_background(*args, stderr=None, stdout=None):
     if "--accounts" not in args:
         args = [*args, "--accounts", "1"]
 
+    port = args[args.index("--port") + 1] if "--port" in args else PORT
+
     command = [
         "poetry",
         "run",
@@ -44,13 +47,14 @@ def run_devnet_in_background(*args, stderr=None, stdout=None):
         "--host",
         HOST,
         "--port",
-        PORT,
+        port,
         *args,
     ]
     # pylint: disable=consider-using-with
     proc = subprocess.Popen(command, close_fds=True, stderr=stderr, stdout=stdout)
 
-    ensure_server_alive(f"{APP_URL}/is_alive", proc)
+    healthcheck_url = f"http://{HOST}:{port}/is_alive"
+    ensure_server_alive(healthcheck_url, proc)
     return proc
 
 
@@ -147,11 +151,12 @@ def extract_address(stdout):
     return extract(r"Contract address: (\w*)", stdout)
 
 
-def run_starknet(args, raise_on_nonzero=True, add_gateway_urls=True):
+def run_starknet(args, raise_on_nonzero=True, gateway_url=APP_URL):
     """Wrapper around subprocess.run"""
     my_args = ["poetry", "run", "starknet", *args, "--no_wallet"]
-    if add_gateway_urls:
-        my_args.extend(["--gateway_url", APP_URL, "--feeder_gateway_url", APP_URL])
+    # there is no case when gateway should not be equal to feeder gateway
+    my_args.extend(["--gateway_url", gateway_url, "--feeder_gateway_url", gateway_url])
+
     output = subprocess.run(my_args, encoding="utf-8", check=False, capture_output=True)
     if output.returncode != 0 and raise_on_nonzero:
         if output.stderr:
@@ -160,20 +165,20 @@ def run_starknet(args, raise_on_nonzero=True, add_gateway_urls=True):
     return output
 
 
-def send_tx(transaction: dict, tx_type: TransactionType) -> dict:
+def send_tx(transaction: dict, tx_type: TransactionType, gateway_url=APP_URL) -> dict:
     """
     Send transaction.
     Returns tx hash
     """
     resp = requests.post(
-        url=f"{APP_URL}/gateway/add_transaction",
+        url=f"{gateway_url}/gateway/add_transaction",
         json={**transaction, "type": tx_type.name},
     )
     assert resp.status_code == 200
     return resp.json()
 
 
-def deploy(contract, inputs=None, salt=None):
+def deploy(contract, inputs=None, salt=None, gateway_url=APP_URL):
     """Wrapper around starknet deploy"""
 
     inputs = inputs or []
@@ -185,7 +190,7 @@ def deploy(contract, inputs=None, salt=None):
         version=SUPPORTED_TX_VERSION,
     ).dump()
 
-    resp = send_tx(deploy_tx, TransactionType.DEPLOY)
+    resp = send_tx(deploy_tx, TransactionType.DEPLOY, gateway_url)
 
     return {
         "tx_hash": resp["transaction_hash"],
@@ -216,9 +221,13 @@ def estimate_message_fee(
     return extract_fee(output.stdout)
 
 
-def assert_transaction(tx_hash, expected_status, expected_signature=None):
+def assert_transaction(
+    tx_hash, expected_status, expected_signature=None, feeder_gateway_url=APP_URL
+):
     """Wrapper around starknet get_transaction"""
-    output = run_starknet(["get_transaction", "--hash", tx_hash])
+    output = run_starknet(
+        ["get_transaction", "--hash", tx_hash], gateway_url=feeder_gateway_url
+    )
     transaction = json.loads(output.stdout)
     assert_equal(transaction["status"], expected_status, transaction)
     if expected_signature:
@@ -267,29 +276,39 @@ def assert_keys(dictionary, keys):
     assert dictionary.keys() == expected_set, f"{dictionary.keys()} != {expected_set}"
 
 
-def assert_transaction_not_received(tx_hash):
+def assert_transaction_not_received(tx_hash: str, feeder_gateway_url=APP_URL):
     """Assert correct tx response when there is no tx with `tx_hash`."""
-    output = run_starknet(["get_transaction", "--hash", tx_hash])
+    output = run_starknet(
+        ["get_transaction", "--hash", tx_hash], gateway_url=feeder_gateway_url
+    )
     transaction = json.loads(output.stdout)
     assert_equal(transaction, {"status": "NOT_RECEIVED"})
 
 
-def assert_transaction_receipt_not_received(tx_hash):
+def assert_transaction_receipt_not_received(tx_hash: str, feeder_gateway_url=APP_URL):
     """Assert correct tx receipt response when there is no tx with `tx_hash`."""
-    receipt = get_transaction_receipt(tx_hash)
+    receipt = get_transaction_receipt(tx_hash, feeder_gateway_url=feeder_gateway_url)
     assert_equal(
         receipt,
         {
             "events": [],
             "l2_to_l1_messages": [],
             "status": "NOT_RECEIVED",
-            "transaction_hash": tx_hash,
+            "transaction_hash": "0x0",
         },
     )
 
 
 # pylint: disable=too-many-arguments
-def estimate_fee(function, inputs, address, abi_path, signature=None, nonce=None):
+def estimate_fee(
+    function,
+    inputs,
+    address,
+    abi_path,
+    signature=None,
+    nonce=None,
+    feeder_gateway_url=APP_URL,
+):
     """Wrapper around starknet estimate_fee. Returns fee in wei."""
     args = [
         "invoke",
@@ -310,13 +329,15 @@ def estimate_fee(function, inputs, address, abi_path, signature=None, nonce=None
     if nonce is not None:
         args.extend(["--nonce", str(nonce)])
 
-    output = run_starknet(args)
+    output = run_starknet(args, gateway_url=feeder_gateway_url)
 
     print("Estimate fee successful!")
     return extract_fee(output.stdout)
 
 
-def call(function: str, address: str, abi_path: str, inputs=None):
+def call(
+    function: str, address: str, abi_path: str, inputs=None, feeder_gateway_url=APP_URL
+):
     """Wrapper around starknet call"""
     args = [
         "call",
@@ -330,7 +351,7 @@ def call(function: str, address: str, abi_path: str, inputs=None):
     if inputs:
         args.extend(["--inputs", *inputs])
 
-    output = run_starknet(args)
+    output = run_starknet(args, gateway_url=feeder_gateway_url)
 
     print("Call successful!")
     return output.stdout.rstrip()
@@ -343,9 +364,11 @@ def load_contract_class(contract_path: str):
     return ContractClass.load(loaded_contract)
 
 
-def assert_tx_status(tx_hash, expected_tx_status):
+def assert_tx_status(tx_hash, expected_tx_status: str, feeder_gateway_url=APP_URL):
     """Asserts the tx_status of the tx with tx_hash."""
-    output = run_starknet(["tx_status", "--hash", tx_hash])
+    output = run_starknet(
+        ["tx_status", "--hash", tx_hash], gateway_url=feeder_gateway_url
+    )
     response = json.loads(output.stdout)
     tx_status = response["tx_status"]
     assert_equal(tx_status, expected_tx_status, response)
@@ -354,12 +377,31 @@ def assert_tx_status(tx_hash, expected_tx_status):
         assert "tx_failure_reason" in response, f"Key not found in {response}"
 
 
-def assert_contract_code(address):
-    """Asserts the content of the code of a contract at address."""
-    output = run_starknet(["get_code", "--contract_address", address])
+def assert_contract_code_present(address: str, feeder_gateway_url=APP_URL):
+    """Asserts the content of the code of a contract at `address`."""
+    output = run_starknet(
+        ["get_code", "--contract_address", address], gateway_url=feeder_gateway_url
+    )
     code = json.loads(output.stdout)
-    # just checking key equality
+
+    assert code["abi"]  # assert non-empty
+    assert code["bytecode"]  # assert non-empty
+
+    # assert no other keys
     assert_equal(sorted(code.keys()), ["abi", "bytecode"])
+
+
+def assert_contract_code_not_present(address: str, feeder_gateway_url=APP_URL):
+    """Assert abi and bytecode empty"""
+    resp = requests.get(
+        f"{feeder_gateway_url}/feeder_gateway/get_code?contractAddress={address}"
+    )
+
+    code = resp.json()
+    assert code["abi"] == {}
+    assert code["bytecode"] == []
+
+    assert resp.status_code == 200
 
 
 def assert_contract_class(actual_class: ContractClass, expected_class_path: str):
@@ -369,10 +411,13 @@ def assert_contract_class(actual_class: ContractClass, expected_class_path: str)
     assert_equal(actual_class, loaded_contract_class.remove_debug_info())
 
 
-def assert_storage(address, key, expected_value):
+def assert_storage(
+    address: str, key: str, expected_value: str, feeder_gateway_url=APP_URL
+):
     """Asserts the storage value stored at (address, key)."""
     output = run_starknet(
-        ["get_storage_at", "--contract_address", address, "--key", key]
+        ["get_storage_at", "--contract_address", address, "--key", key],
+        gateway_url=feeder_gateway_url,
     )
     assert_equal(output.stdout.rstrip(), expected_value)
 
@@ -383,16 +428,42 @@ def load_json_from_path(path):
         return json.load(expected_file)
 
 
-def get_transaction_receipt(tx_hash: str):
+def get_transaction_receipt(tx_hash: str, feeder_gateway_url=APP_URL):
     """Fetches the transaction receipt of transaction with tx_hash"""
-    output = run_starknet(["get_transaction_receipt", "--hash", tx_hash])
+    output = run_starknet(
+        ["get_transaction_receipt", "--hash", tx_hash], gateway_url=feeder_gateway_url
+    )
     return json.loads(output.stdout)
 
 
-def get_full_contract(contract_address: str) -> ContractClass:
+def get_full_contract(
+    contract_address: str, feeder_gateway_url=APP_URL
+) -> ContractClass:
     """Gets contract class by contract address"""
-    output = run_starknet(["get_full_contract", "--contract_address", contract_address])
+    output = run_starknet(
+        ["get_full_contract", "--contract_address", contract_address],
+        gateway_url=feeder_gateway_url,
+    )
     return ContractClass.loads(output.stdout)
+
+
+def assert_full_contract_not_present(address: str, feeder_gateway_url=APP_URL):
+    """Assert that get_full_contract fails due to uninitialized contract"""
+    resp = requests.get(
+        f"{feeder_gateway_url}/feeder_gateway/get_full_contract",
+        {"contractAddress": address},
+    )
+
+    assert resp.json()["code"] == str(StarknetErrorCode.UNINITIALIZED_CONTRACT)
+    assert resp.status_code == 500
+
+
+def assert_full_contract(address: str, expected_path: str, feeder_gateway_url=APP_URL):
+    """Assert that the provided address has contract from `expected_path` deployed at it."""
+    class_by_address = get_full_contract(
+        contract_address=address, feeder_gateway_url=feeder_gateway_url
+    )
+    assert_contract_class(class_by_address, expected_class_path=expected_path)
 
 
 def get_class_hash_at(contract_address: str) -> str:
@@ -401,10 +472,52 @@ def get_class_hash_at(contract_address: str) -> str:
     return output.stdout
 
 
-def get_class_by_hash(class_hash: str):
+def assert_address_has_no_class_hash(contract_address: str, feeder_gateway_url=APP_URL):
+    """There should be no class hash at `contract_address`."""
+    resp = requests.get(
+        f"{feeder_gateway_url}/feeder_gateway/get_class_hash_at",
+        {"contractAddress": contract_address},
+    )
+    assert resp.json()["code"] == str(StarknetErrorCode.UNINITIALIZED_CONTRACT)
+    assert resp.status_code == 500
+
+
+def assert_class_hash_at_address(
+    contract_address: str, expected_class_hash: str, feeder_gateway_url=APP_URL
+):
+    """The class hash at `contract_address` should be `expected_class_hash`."""
+    resp = requests.get(
+        f"{feeder_gateway_url}/feeder_gateway/get_class_hash_at",
+        {"contractAddress": contract_address},
+    )
+    received_class_hash = int(json.loads(resp.text), 16)
+    assert received_class_hash == int(expected_class_hash, 16)
+    assert resp.status_code == 200
+
+
+def get_class_by_hash(class_hash: str, feeder_gateway_url=APP_URL):
     """Gets contract class by contract hash"""
-    output = run_starknet(["get_class_by_hash", "--class_hash", class_hash])
-    return ContractClass.loads(output.stdout)
+    return requests.get(
+        f"{feeder_gateway_url}/feeder_gateway/get_class_by_hash",
+        {"classHash": class_hash},
+    )
+
+
+def assert_class_by_hash(
+    class_hash: str, expected_path: str, feeder_gateway_url=APP_URL
+):
+    """Assert the class at `class_hash` matches what is at `expected_path`."""
+    resp = get_class_by_hash(class_hash, feeder_gateway_url=feeder_gateway_url)
+    class_by_hash = ContractClass.loads(resp.text)
+    assert_contract_class(class_by_hash, expected_class_path=expected_path)
+    assert resp.status_code == 200
+
+
+def assert_class_by_hash_not_present(class_hash: str, feeder_gateway_url=APP_URL):
+    """Assert the server holds no class at provided `class_hash`."""
+    resp = get_class_by_hash(class_hash, feeder_gateway_url=feeder_gateway_url)
+    assert resp.json()["code"] == str(StarknetErrorCode.UNDECLARED_CLASS)
+    assert resp.status_code == 500
 
 
 def assert_receipt(tx_hash, expected_path):
@@ -420,6 +533,15 @@ def assert_receipt(tx_hash, expected_path):
     assert_equal(receipt, expected_receipt)
 
 
+def assert_receipt_present(
+    tx_hash: str, expected_status: str, feeder_gateway_url=APP_URL
+):
+    """Asserts the content of the receipt of tx with tx_hash is non-empty"""
+    receipt = get_transaction_receipt(tx_hash, feeder_gateway_url=feeder_gateway_url)
+    assert receipt["transaction_hash"] == tx_hash
+    assert receipt["status"] == expected_status
+
+
 def assert_events(tx_hash, expected_path):
     """Asserts the content of the events element of the receipt of tx with tx_hash."""
     receipt = get_transaction_receipt(tx_hash)
@@ -427,16 +549,23 @@ def assert_events(tx_hash, expected_path):
     assert_equal(receipt["events"], expected_receipt["events"])
 
 
-def get_block(block_number=None, parse=False):
+def get_block(
+    block_number=None, block_hash=None, parse=False, feeder_gateway_url=APP_URL
+):
     """Get the block with block_number. If no number provided, return the last."""
     args = ["get_block"]
     if block_number:
         args.extend(["--number", str(block_number)])
+    if block_hash:
+        args.extend(["--hash", str(block_hash)])
+
     if parse:
-        output = run_starknet(args, raise_on_nonzero=True)
+        output = run_starknet(
+            args, raise_on_nonzero=True, gateway_url=feeder_gateway_url
+        )
         return json.loads(output.stdout)
 
-    return run_starknet(args, raise_on_nonzero=False)
+    return run_starknet(args, raise_on_nonzero=False, gateway_url=feeder_gateway_url)
 
 
 def assert_negative_block_input():
@@ -476,14 +605,6 @@ def assert_block(latest_block_number, latest_tx_hash):
     )
     assert_equal(latest_block["gas_price"], hex(DEFAULT_GENERAL_CONFIG.min_gas_price))
     assert re.match(r"^[a-fA-F0-9]{64}$", latest_block["state_root"])
-
-
-def assert_block_hash(latest_block_number, expected_block_hash):
-    """Asserts the content of the block with block_number."""
-
-    block = get_block(block_number=latest_block_number, parse=True)
-    assert_equal(block["block_hash"], expected_block_hash)
-    assert_equal(block["status"], "ACCEPTED_ON_L2")
 
 
 def assert_salty_deploy(
@@ -544,3 +665,8 @@ class DevnetBackgroundProc:
         if self.proc:
             terminate_and_wait(self.proc)
             self.proc = None
+
+
+def read_stream(stream: IO, encoding="utf-8") -> str:
+    """Return stdout and stderr of `proc`"""
+    return stream.read().decode(encoding)

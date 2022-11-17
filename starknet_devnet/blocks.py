@@ -12,6 +12,7 @@ from starkware.starknet.services.api.feeder_gateway.response_objects import (
     BlockStatus,
 )
 from starkware.starknet.services.api.feeder_gateway.response_objects import (
+    BlockIdentifier,
     BlockStateUpdate,
 )
 from starkware.starkware_utils.error_handling import StarkErrorCode
@@ -33,22 +34,16 @@ class DevnetBlocks:
         self.__state_updates: Dict[int, BlockStateUpdate] = {}
         self.__hash2num: Dict[str, int] = {}
 
-    def get_last_block(self) -> StarknetBlock:
+    async def get_last_block(self) -> StarknetBlock:
         """Returns the last block stored so far."""
         number_of_blocks = self.get_number_of_blocks()
-        return self.get_by_number(number_of_blocks - 1)
+        return await self.get_by_number(number_of_blocks - 1)
 
     def get_number_of_blocks(self) -> int:
         """Returns the number of blocks stored so far."""
         return len(self.__num2block) + self.origin.get_number_of_blocks()
 
-    def get_by_number(self, block_number: int) -> StarknetBlock:
-        """Returns the block whose block_number is provided"""
-        if block_number is None:
-            if self.__num2block:
-                return self.get_last_block()
-            return self.origin.get_block_by_number(block_number)
-
+    def __assert_block_number_in_range(self, block_number: BlockIdentifier):
         if block_number < 0:
             message = (
                 f"Block number must be a non-negative integer; got: {block_number}."
@@ -63,12 +58,20 @@ class DevnetBlocks:
                 code=StarknetErrorCode.BLOCK_NOT_FOUND, message=message
             )
 
+    async def get_by_number(self, block_number: BlockIdentifier) -> StarknetBlock:
+        """Returns the block whose block_number is provided"""
+        if block_number is None:
+            if self.__num2block:
+                return await self.get_last_block()
+            return await self.origin.get_block_by_number(block_number)
+
+        self.__assert_block_number_in_range(block_number)
         if block_number in self.__num2block:
             return self.__num2block[block_number]
 
-        return self.origin.get_block_by_number(block_number)
+        return await self.origin.get_block_by_number(block_number)
 
-    def get_by_hash(self, block_hash: str) -> StarknetBlock:
+    async def get_by_hash(self, block_hash: str) -> StarknetBlock:
         """
         Returns the block with the given block hash.
         """
@@ -76,11 +79,13 @@ class DevnetBlocks:
 
         if numeric_hash in self.__hash2num:
             block_number = self.__hash2num[int(block_hash, 16)]
-            return self.get_by_number(block_number)
+            return await self.get_by_number(block_number)
 
-        return self.origin.get_block_by_hash(block_hash)
+        return await self.origin.get_block_by_hash(block_hash)
 
-    def get_state_update(self, block_hash=None, block_number=None) -> BlockStateUpdate:
+    async def get_state_update(
+        self, block_hash=None, block_number=None
+    ) -> BlockStateUpdate:
         """
         Returns state update for the provided block hash or block number.
         It will return the last state update if block is not provided.
@@ -89,19 +94,20 @@ class DevnetBlocks:
             numeric_hash = int(block_hash, 16)
 
             if numeric_hash not in self.__hash2num:
-                return self.origin.get_state_update(block_hash=block_hash)
+                return await self.origin.get_state_update(block_hash=block_hash)
 
             block_number = self.__hash2num[numeric_hash]
 
         if block_number is not None:
-            if block_number not in self.__state_updates:
-                return self.origin.get_state_update(block_number=block_number)
+            self.__assert_block_number_in_range(block_number)
+            if block_number in self.__state_updates:
+                return self.__state_updates[block_number]
 
-            return self.__state_updates[block_number]
+            return await self.origin.get_state_update(block_number=block_number)
 
         return (
             self.__state_updates.get(self.get_number_of_blocks() - 1)
-            or self.origin.get_state_update()
+            or await self.origin.get_state_update()
         )
 
     async def generate(
@@ -122,7 +128,7 @@ class DevnetBlocks:
         if block_number == 0:
             parent_block_hash = 0
         else:
-            last_block = self.get_last_block()
+            last_block = await self.get_last_block()
             parent_block_hash = last_block.block_hash
 
         if is_empty_block:

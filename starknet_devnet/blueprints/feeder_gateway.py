@@ -17,10 +17,12 @@ from starkware.starknet.services.api.feeder_gateway.request_objects import (
     CallL1Handler,
 )
 from starkware.starknet.services.api.feeder_gateway.response_objects import (
+    StarknetBlock,
     TransactionSimulationInfo,
 )
 from starkware.starkware_utils.error_handling import StarkErrorCode
 from werkzeug.datastructures import MultiDict
+
 
 from starknet_devnet.state import state
 from starknet_devnet.util import StarknetDevnetException, custom_int, fixed_length_hex
@@ -68,25 +70,25 @@ def _check_block_arguments(block_hash, block_number):
         )
 
 
-def _get_block_object(block_hash: str, block_number: int):
+async def _get_block_object(block_hash: str, block_number: int):
     """Returns the block object"""
 
     _check_block_arguments(block_hash, block_number)
 
     if block_hash is not None:
-        block = state.starknet_wrapper.blocks.get_by_hash(block_hash)
-    else:
-        block = state.starknet_wrapper.blocks.get_by_number(block_number)
+        return await state.starknet_wrapper.blocks.get_by_hash(block_hash)
 
-    return block
+    return await state.starknet_wrapper.blocks.get_by_number(block_number)
 
 
-def _get_block_transaction_traces(block):
+async def _get_block_transaction_traces(block: StarknetBlock):
     traces = []
     if block.transaction_receipts:
         for transaction in block.transaction_receipts:
             tx_hash = hex(transaction.transaction_hash)
-            trace = state.starknet_wrapper.transactions.get_transaction_trace(tx_hash)
+            trace = await state.starknet_wrapper.transactions.get_transaction_trace(
+                tx_hash
+            )
 
             # expected trace is equal to response of get_transaction, but with the hash property
             trace_dict = trace.dump()
@@ -121,32 +123,32 @@ async def call_contract():
 
 
 @feeder_gateway.route("/get_block", methods=["GET"])
-def get_block():
+async def get_block():
     """Endpoint for retrieving a block identified by its hash or number."""
 
     block_hash = request.args.get("blockHash")
     block_number = request.args.get("blockNumber", type=custom_int)
 
-    block = _get_block_object(block_hash=block_hash, block_number=block_number)
+    block = await _get_block_object(block_hash=block_hash, block_number=block_number)
 
     return Response(block.dumps(), status=200, mimetype="application/json")
 
 
 @feeder_gateway.route("/get_block_traces", methods=["GET"])
-def get_block_traces():
+async def get_block_traces():
     """Returns the traces of the transactions in the specified block."""
 
     block_hash = request.args.get("blockHash")
     block_number = request.args.get("blockNumber", type=custom_int)
 
-    block = _get_block_object(block_hash=block_hash, block_number=block_number)
-    block_transaction_traces = _get_block_transaction_traces(block)
+    block = await _get_block_object(block_hash=block_hash, block_number=block_number)
+    block_transaction_traces = await _get_block_transaction_traces(block)
 
     return jsonify(block_transaction_traces.dump())
 
 
 @feeder_gateway.route("/get_code", methods=["GET"])
-def get_code():
+async def get_code():
     """
     Returns the ABI and bytecode of the contract whose contractAddress is provided.
     """
@@ -154,12 +156,12 @@ def get_code():
     _check_block_hash(request.args)
 
     contract_address = request.args.get("contractAddress", type=custom_int)
-    result_dict = state.starknet_wrapper.contracts.get_code(contract_address)
-    return jsonify(result_dict)
+    code_dict = await state.starknet_wrapper.get_code(contract_address)
+    return jsonify(code_dict)
 
 
 @feeder_gateway.route("/get_full_contract", methods=["GET"])
-def get_full_contract():
+async def get_full_contract():
     """
     Returns the contract class of the contract whose contractAddress is provided.
     """
@@ -167,29 +169,26 @@ def get_full_contract():
 
     contract_address = request.args.get("contractAddress", type=custom_int)
 
-    contract_class = state.starknet_wrapper.contracts.get_full_contract(
-        contract_address
-    )
-
-    return jsonify(contract_class.dump())
+    contract_class = await state.starknet_wrapper.get_class_by_address(contract_address)
+    return jsonify(contract_class.remove_debug_info().dump())
 
 
 @feeder_gateway.route("/get_class_hash_at", methods=["GET"])
-def get_class_hash_at():
+async def get_class_hash_at():
     """Get contract class hash by contract address"""
 
     contract_address = request.args.get("contractAddress", type=custom_int)
-    class_hash = state.starknet_wrapper.contracts.get_class_hash_at(contract_address)
+    class_hash = await state.starknet_wrapper.get_class_hash_at(contract_address)
     return jsonify(fixed_length_hex(class_hash))
 
 
 @feeder_gateway.route("/get_class_by_hash", methods=["GET"])
-def get_class_by_hash():
+async def get_class_by_hash():
     """Get contract class by class hash"""
 
     class_hash = request.args.get("classHash", type=custom_int)
-    contract_class = state.starknet_wrapper.contracts.get_class_by_hash(class_hash)
-    return jsonify(contract_class.dump())
+    contract_class = await state.starknet_wrapper.get_class_by_hash(class_hash)
+    return jsonify(contract_class.remove_debug_info().dump())
 
 
 @feeder_gateway.route("/get_storage_at", methods=["GET"])
@@ -205,26 +204,26 @@ async def get_storage_at():
 
 
 @feeder_gateway.route("/get_transaction_status", methods=["GET"])
-def get_transaction_status():
+async def get_transaction_status():
     """
     Returns the status of the transaction identified by the transactionHash argument in the GET request.
     """
 
     transaction_hash = request.args.get("transactionHash")
-    transaction_status = state.starknet_wrapper.transactions.get_transaction_status(
+    tx_status = await state.starknet_wrapper.transactions.get_transaction_status(
         transaction_hash
     )
-    return jsonify(transaction_status)
+    return jsonify(tx_status)
 
 
 @feeder_gateway.route("/get_transaction", methods=["GET"])
-def get_transaction():
+async def get_transaction():
     """
     Returns the transaction identified by the transactionHash argument in the GET request.
     """
 
     transaction_hash = request.args.get("transactionHash")
-    transaction_info = state.starknet_wrapper.transactions.get_transaction(
+    transaction_info = await state.starknet_wrapper.transactions.get_transaction(
         transaction_hash
     )
     return Response(
@@ -233,28 +232,28 @@ def get_transaction():
 
 
 @feeder_gateway.route("/get_transaction_receipt", methods=["GET"])
-def get_transaction_receipt():
+async def get_transaction_receipt():
     """
     Returns the transaction receipt identified by the transactionHash argument in the GET request.
     """
 
     transaction_hash = request.args.get("transactionHash")
-    transaction_receipt = state.starknet_wrapper.transactions.get_transaction_receipt(
+    tx_receipt = await state.starknet_wrapper.transactions.get_transaction_receipt(
         transaction_hash
     )
     return Response(
-        response=transaction_receipt.dumps(), status=200, mimetype="application/json"
+        response=tx_receipt.dumps(), status=200, mimetype="application/json"
     )
 
 
 @feeder_gateway.route("/get_transaction_trace", methods=["GET"])
-def get_transaction_trace():
+async def get_transaction_trace():
     """
     Returns the trace of the transaction identified by the transactionHash argument in the GET request.
     """
 
     transaction_hash = request.args.get("transactionHash")
-    transaction_trace = state.starknet_wrapper.transactions.get_transaction_trace(
+    transaction_trace = await state.starknet_wrapper.transactions.get_transaction_trace(
         transaction_hash
     )
 
@@ -264,7 +263,7 @@ def get_transaction_trace():
 
 
 @feeder_gateway.route("/get_state_update", methods=["GET"])
-def get_state_update():
+async def get_state_update():
     """
     Returns the status update from the block identified by the blockHash argument in the GET request.
     If no block hash was provided it will default to the last block.
@@ -273,7 +272,7 @@ def get_state_update():
     block_hash = request.args.get("blockHash")
     block_number = request.args.get("blockNumber", type=custom_int)
 
-    state_update = state.starknet_wrapper.blocks.get_state_update(
+    state_update = await state.starknet_wrapper.blocks.get_state_update(
         block_hash=block_hash, block_number=block_number
     )
 

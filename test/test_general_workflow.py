@@ -6,12 +6,13 @@ import pytest
 
 from .account import invoke
 from .util import (
-    assert_contract_class,
+    assert_class_by_hash,
+    assert_full_contract,
     assert_negative_block_input,
     assert_transaction_not_received,
     assert_transaction_receipt_not_received,
     assert_block,
-    assert_contract_code,
+    assert_contract_code_present,
     assert_equal,
     assert_failing_deploy,
     assert_receipt,
@@ -22,9 +23,7 @@ from .util import (
     assert_events,
     call,
     deploy,
-    get_class_by_hash,
     get_class_hash_at,
-    get_full_contract,
     get_block,
 )
 
@@ -43,28 +42,25 @@ from .shared import (
     PREDEPLOYED_ACCOUNT_PRIVATE_KEY,
 )
 
-EXPECTED_SALTY_DEPLOY_HASH_LITE_MODE = "0x2"
 EXPECTED_SALTY_DEPLOY_BLOCK_HASH_LITE_MODE = "0x1"
 
 
 @pytest.mark.usefixtures("run_devnet_in_background")
 @pytest.mark.parametrize(
-    "run_devnet_in_background, expected_tx_hash, expected_block_hash",
+    "run_devnet_in_background, expected_block_hash",
     [
         (
             [*PREDEPLOY_ACCOUNT_CLI_ARGS],
-            EXPECTED_SALTY_DEPLOY_HASH,
             "",
         ),
         (
             [*PREDEPLOY_ACCOUNT_CLI_ARGS, "--lite-mode"],
-            EXPECTED_SALTY_DEPLOY_HASH_LITE_MODE,
             EXPECTED_SALTY_DEPLOY_BLOCK_HASH_LITE_MODE,
         ),
     ],
     indirect=True,
 )
-def test_general_workflow(expected_tx_hash, expected_block_hash):
+def test_general_workflow(expected_block_hash):
     """Test devnet with CLI"""
     deploy_info = deploy(CONTRACT_PATH, inputs=["0"])
 
@@ -87,16 +83,14 @@ def test_general_workflow(expected_tx_hash, expected_block_hash):
     assert_transaction_receipt_not_received(NONEXISTENT_TX_HASH)
 
     # check code
-    assert_contract_code(deploy_info["address"])
+    assert_contract_code_present(deploy_info["address"])
 
     # check contract class
-    class_by_address = get_full_contract(deploy_info["address"])
-    assert_contract_class(class_by_address, CONTRACT_PATH)
+    assert_full_contract(address=deploy_info["address"], expected_path=CONTRACT_PATH)
 
     # check contract class through class hash
     class_hash = get_class_hash_at(deploy_info["address"])
-    class_by_hash = get_class_by_hash(class_hash)
-    assert_equal(class_by_address, class_by_hash)
+    assert_class_by_hash(class_hash, expected_path=CONTRACT_PATH)
 
     # increase and assert balance
     invoke_tx_hash = invoke(
@@ -132,7 +126,7 @@ def test_general_workflow(expected_tx_hash, expected_block_hash):
             inputs=None,
             expected_status="ACCEPTED_ON_L2",
             expected_address=EXPECTED_SALTY_DEPLOY_ADDRESS,
-            expected_tx_hash=expected_tx_hash,
+            expected_tx_hash=EXPECTED_SALTY_DEPLOY_HASH,
         )
 
     salty_invoke_tx_hash = invoke(

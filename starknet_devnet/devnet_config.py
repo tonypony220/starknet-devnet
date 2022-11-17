@@ -1,16 +1,23 @@
 """Module for configuration specified by user"""
 
 import argparse
+import asyncio
+import contextlib
 from enum import Enum, auto
 import json
 import os
 import sys
 from typing import List
 
+from aiohttp.client_exceptions import ClientConnectorError, InvalidURL
 from marshmallow.exceptions import ValidationError
+from services.external_api.client import BadRequest, RetryConfig
 from starkware.python.utils import to_bytes
 from starkware.starknet.core.os.class_hash import compute_class_hash
 from starkware.starknet.services.api.contract_class import ContractClass
+from starkware.starknet.services.api.feeder_gateway.feeder_gateway_client import (
+    FeederGatewayClient,
+)
 
 from .contract_class_wrapper import (
     ContractClassWrapper,
@@ -28,18 +35,36 @@ from .constants import (
 )
 
 
-# Uncomment this once fork support is added
-# def _fork_url(name: str):
-#     """
-#     Return the URL corresponding to the provided name.
-#     If it's not one of predefined names, assumes it is already a URL.
-#     """
-#     if name in ["alpha", "alpha-goerli"]:
-#         return "https://alpha4.starknet.io"
-#     if name == "alpha-mainnet":
-#         return "https://alpha-mainnet.starknet.io"
-#     # otherwise a URL; perhaps check validity
-#     return name
+NETWORK_TO_URL = {
+    "alpha-goerli": "https://alpha4.starknet.io",
+    "alpha-goerli2": "https://alpha4-2.starknet.io",
+    "alpha-mainnet": "https://alpha-mainnet.starknet.io",
+}
+NETWORK_NAMES = ", ".join(NETWORK_TO_URL.keys())
+
+
+def _fork_network(network_id: str):
+    """
+    Return the URL corresponding to the provided name.
+    If it's not one of predefined names, assumes it is already a URL.
+    """
+    return NETWORK_TO_URL.get(network_id, network_id)
+
+
+def _fork_block(specifier: str):
+    """Parse block specifier; allows int and 'latest'"""
+    if specifier == "latest":
+        return specifier
+
+    try:
+        parsed = int(specifier)
+        assert parsed > 0
+    except (AssertionError, ValueError):
+        sys.exit(
+            f"The value of --fork-block must be a non-negative integer or 'latest', got: {specifier}"
+        )
+
+    return parsed
 
 
 class DumpOn(Enum):
@@ -99,6 +124,37 @@ def _parse_account_class(class_path: str) -> ContractClassWrapper:
     return ContractClassWrapper(contract_class, class_hash_bytes)
 
 
+def _get_feeder_gateway_client(url: str, block_id: str):
+    """Construct a feeder gateway client at url and block"""
+
+    feeder_gateway_client = FeederGatewayClient(
+        url=url,
+        retry_config=RetryConfig(n_retries=1),
+    )
+
+    try:
+        # FeederGatewayClient is implemented in such a way that it logs and raises;
+        # this suppreses the logging
+        with contextlib.redirect_stderr(None):
+            block = asyncio.run(feeder_gateway_client.get_block(block_number=block_id))
+            block_number = block.block_number
+    except InvalidURL:
+        sys.exit(
+            f"Error: Invalid fork-network (must be a URL or one of {{{NETWORK_NAMES}}}). Received: {url}"
+        )
+    except BadRequest as bad_request:
+        if bad_request.status_code == 404:
+            msg = f"Error: {url} is not a valid StarkNet sequencer"
+        else:
+            msg = f"Error: {bad_request}"
+
+        sys.exit(msg)
+    except ClientConnectorError as error:
+        sys.exit(f"Error: {error}")
+
+    return feeder_gateway_client, block_number
+
+
 class NonNegativeAction(argparse.Action):
     """
     Action for parsing the non negative int argument.
@@ -122,7 +178,7 @@ def parse_args(raw_args: List[str]):
     Parses CLI arguments.
     """
     parser = argparse.ArgumentParser(
-        description="Run a local instance of Starknet Devnet"
+        description="Run a local instance of StarkNet Devnet"
     )
     parser.add_argument(
         "-v",
@@ -134,7 +190,7 @@ def parse_args(raw_args: List[str]):
     parser.add_argument(
         "--host",
         help=f"Specify the address to listen at; defaults to {DEFAULT_HOST} "
-        + "(use the address the program outputs on start)",
+        "(use the address the program outputs on start)",
         default=DEFAULT_HOST,
     )
     parser.add_argument(
@@ -156,7 +212,7 @@ def parse_args(raw_args: List[str]):
     parser.add_argument(
         "--lite-mode",
         action="store_true",
-        help="Introduces speed-up by skipping block hash and deploy transaction hash calculation"
+        help="Introduces speed-up by skipping block hash calculation"
         " - applies sequential numbering instead (0x0, 0x1, 0x2, ...).",
     )
     parser.add_argument(
@@ -170,7 +226,7 @@ def parse_args(raw_args: List[str]):
         "-e",
         action=NonNegativeAction,
         help="Specify the initial balance of accounts to be predeployed; "
-        + f"defaults to {DEFAULT_INITIAL_BALANCE:g}",
+        f"defaults to {DEFAULT_INITIAL_BALANCE:g}",
         default=DEFAULT_INITIAL_BALANCE,
     )
     parser.add_argument(
@@ -210,17 +266,30 @@ def parse_args(raw_args: List[str]):
         type=_parse_account_class,
         default=DEFAULT_ACCOUNT_PATH,
     )
-    # Uncomment this once fork support is added
-    # parser.add_argument(
-    #     "--fork", "-f",
-    #     type=_fork_url,
-    #     help="Specify the network to fork: can be a URL (e.g. https://alpha-mainnet.starknet.io) " +
-    #          "or network name (alpha or alpha-mainnet)",
-    # )
+    parser.add_argument(
+        "--fork-network",
+        type=_fork_network,
+        help="Specify the network to fork: can be a URL (e.g. https://alpha-mainnet.starknet.io) "
+        f"or network name (valid names: {', '.join(NETWORK_TO_URL.keys())})",
+    )
+    parser.add_argument(
+        "--fork-block",
+        type=_fork_block,
+        help="Specify the block number where the --fork-network is forked; defaults to latest",
+    )
 
     parsed_args = parser.parse_args(raw_args)
     if parsed_args.dump_on and not parsed_args.dump_path:
         sys.exit("Error: --dump-path required if --dump-on present")
+
+    if parsed_args.fork_block and not parsed_args.fork_network:
+        sys.exit("Error: --fork-network required if --fork-block present")
+
+    if parsed_args.fork_network:
+        parsed_args.fork_block = parsed_args.fork_block or "latest"
+        parsed_args.fork_network, parsed_args.fork_block = _get_feeder_gateway_client(
+            parsed_args.fork_network, parsed_args.fork_block
+        )
 
     return parsed_args
 
@@ -241,3 +310,5 @@ class DevnetConfig:
         self.lite_mode = self.args.lite_mode
         self.account_class = self.args.account_class
         self.hide_predeployed_accounts = self.args.hide_predeployed_accounts
+        self.fork_network = self.args.fork_network
+        self.fork_block = self.args.fork_block

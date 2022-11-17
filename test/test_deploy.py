@@ -42,14 +42,13 @@ from .shared import (
 
 from .account import declare, invoke
 from .util import (
-    assert_contract_class,
+    assert_class_by_hash,
     assert_equal,
     assert_hex_equal,
     assert_tx_status,
     call,
     deploy,
     devnet_in_background,
-    get_class_by_hash,
     get_class_hash_at,
     get_transaction_receipt,
     load_contract_class,
@@ -85,23 +84,21 @@ def fixture_starknet_wrapper_args(request):
 
 
 @pytest.mark.parametrize(
-    "starknet_wrapper_args, expected_tx_hash, expected_block_hash",
+    "starknet_wrapper_args, expected_block_hash",
     [
         (
             [*PREDEPLOY_ACCOUNT_CLI_ARGS],
-            "0x13d4b9f765587296a4f40591efe235a8caf24f0496230f0b13a87f2e4c8150a",
             "",
         ),
         (
             [*PREDEPLOY_ACCOUNT_CLI_ARGS, "--lite-mode"],
-            "0x0",
             "0x1",
         ),
     ],
     indirect=True,
 )
 @pytest.mark.asyncio
-async def test_deploy(starknet_wrapper_args, expected_tx_hash, expected_block_hash):
+async def test_deploy(starknet_wrapper_args, expected_block_hash):
     """
     Test the deployment of a contract.
     """
@@ -121,11 +118,11 @@ async def test_deploy(starknet_wrapper_args, expected_tx_hash, expected_block_ha
 
     assert_hex_equal(
         hex(tx_hash),
-        expected_tx_hash,
+        "0x13D4B9F765587296A4F40591EFE235A8CAF24F0496230F0B13A87F2E4C8150A",
     )
     assert contract_address == expected_contract_address
 
-    tx_status = devnet.transactions.get_transaction_status(hex(tx_hash))
+    tx_status = await devnet.transactions.get_transaction_status(hex(tx_hash))
     assert tx_status["tx_status"] == TransactionStatus.ACCEPTED_ON_L2.name
 
     if "--lite-mode" in starknet_wrapper_args:
@@ -140,6 +137,11 @@ def test_predeployed_oz_account():
 @devnet_in_background()
 def test_deploy_account():
     """Test the deployment of an account."""
+    deploy_account_test_body()
+
+
+def deploy_account_test_body():
+    """The body of account deployment test."""
 
     # the account class should already be declared
 
@@ -251,8 +253,7 @@ def test_deploy_through_deployer_constructor():
     class_hash = declare_info["class_hash"]
     assert_hex_equal(class_hash, EXPECTED_CLASS_HASH)
 
-    contract_class = get_class_by_hash(class_hash=class_hash)
-    assert_contract_class(contract_class, CONTRACT_PATH)
+    assert_class_by_hash(class_hash, CONTRACT_PATH)
 
     # Deploy the deployer - also deploys a contract of the declared class using the deploy syscall
     initial_balance_in_constructor = "5"
@@ -284,7 +285,11 @@ def test_precomputed_udc_address():
 @devnet_in_background(*PREDEPLOY_ACCOUNT_CLI_ARGS)
 def test_deploy_with_udc():
     """Test if deploying through UDC works."""
+    deploy_with_udc_test_body()
 
+
+def deploy_with_udc_test_body():
+    """The body of udc deployment test."""
     # Declare the class to be deployed
     declare_info = declare(
         contract_path=CONTRACT_PATH,
@@ -294,8 +299,7 @@ def test_deploy_with_udc():
     class_hash = declare_info["class_hash"]
     assert_hex_equal(class_hash, EXPECTED_CLASS_HASH)
 
-    contract_class = get_class_by_hash(class_hash=class_hash)
-    assert_contract_class(contract_class, CONTRACT_PATH)
+    assert_class_by_hash(class_hash, CONTRACT_PATH)
 
     # Deploy a contract of the declared class through the deployer
     initial_balance = "10"

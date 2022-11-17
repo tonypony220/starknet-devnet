@@ -3,7 +3,6 @@
 from starkware.python.utils import to_bytes
 from starkware.solidity.utils import load_nearby_contract
 from starkware.starknet.services.api.contract_class import ContractClass
-from starkware.starknet.testing.contract import StarknetContract
 from starkware.starknet.testing.starknet import Starknet
 
 
@@ -40,15 +39,7 @@ class UDC:
         contract_class = UDC.get_contract_class()
 
         await starknet.state.state.set_contract_class(UDC.HASH_BYTES, contract_class)
-        await starknet.state.state.deploy_contract(UDC.ADDRESS, UDC.HASH_BYTES)
 
-        contract = StarknetContract(
-            state=starknet.state,
-            abi=contract_class.abi,
-            contract_address=UDC.ADDRESS,
-            deploy_call_info=None,
-        )
-
-        await self.starknet_wrapper.store_contract(
-            UDC.ADDRESS, contract, contract_class
-        )
+        # pylint: disable=protected-access
+        starknet.state.state.cache._class_hash_writes[UDC.ADDRESS] = UDC.HASH_BYTES
+        # replace with await starknet.state.state.deploy_contract

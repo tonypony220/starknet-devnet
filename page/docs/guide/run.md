@@ -9,7 +9,7 @@ Installing the package adds the `starknet-devnet` command.
 ```text
 usage: starknet-devnet [-h] [-v] [--host HOST] [--port PORT] [--load-path LOAD_PATH] [--dump-path DUMP_PATH] [--dump-on DUMP_ON] [--lite-mode] [--accounts ACCOUNTS]
                        [--initial-balance INITIAL_BALANCE] [--seed SEED] [--hide-predeployed-accounts] [--start-time START_TIME] [--gas-price GAS_PRICE] [--timeout TIMEOUT]
-                       [--account-class ACCOUNT_CLASS]
+                       [--account-class ACCOUNT_CLASS] [--fork-network FORK_NETWORK] [--fork-block FORK_BLOCK]
 
 Run a local instance of StarkNet Devnet
 
@@ -23,7 +23,7 @@ optional arguments:
   --dump-path DUMP_PATH
                         Specify the path to dump to
   --dump-on DUMP_ON     Specify when to dump; can dump on: exit, transaction
-  --lite-mode           Introduces speed-up by skipping block hash and deploy transaction hash calculation - applies sequential numbering instead (0x0, 0x1, 0x2, ...).
+  --lite-mode           Introduces speed-up by skipping block hash calculation - applies sequential numbering instead (0x0, 0x1, 0x2, ...).
   --accounts ACCOUNTS   Specify the number of accounts to be predeployed; defaults to 10
   --initial-balance INITIAL_BALANCE, -e INITIAL_BALANCE
                         Specify the initial balance of accounts to be predeployed; defaults to 1e+21
@@ -37,9 +37,11 @@ optional arguments:
   --timeout TIMEOUT, -t TIMEOUT
                         Specify the server timeout in seconds; defaults to 60
   --account-class ACCOUNT_CLASS
-                        Specify the account implementation to be used for predeploying;
-                        should be a path to the compiled JSON artifact;
-                        defaults to OpenZeppelin v0.5.0
+                        Specify the account implementation to be used for predeploying; should be a path to the compiled JSON artifact; defaults to OpenZeppelin v0.5.0
+  --fork-network FORK_NETWORK
+                        Specify the network to fork: can be a URL (e.g. https://alpha-mainnet.starknet.io) or network name (valid names: alpha-goerli, alpha-goerli2, alpha-mainnet)
+  --fork-block FORK_BLOCK
+                        Specify the block number where the --fork-network is forked; defaults to latest
 ```
 
 You can run `starknet-devnet` in a separate shell, or you can run it in background with `starknet-devnet &`.
