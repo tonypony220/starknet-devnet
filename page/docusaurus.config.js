@@ -30,7 +30,7 @@ const config = {
       ({
         docs: {
           sidebarPath: require.resolve('./sidebars.js'),
-          editUrl: 'https://github.com/Shard-Labs/starknet-devnet',
+          editUrl: 'https://github.com/Shard-Labs/starknet-devnet/page/',
         },
         blog: {
           showReadingTime: true,
