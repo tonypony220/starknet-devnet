@@ -112,20 +112,20 @@ poetry version <VERSION>
 
 or any other variation of that [command](https://python-poetry.org/docs/cli/#version)
 
-In file `/starknet_devnet/__init__.py` you need to manually update the version:
+In `starknet_devnet/__init__.py` you need to manually update the version:
 
 ```
 __version__ = "<VERSION>"
 ```
 
-If you did everything correctly these commands should result with the same version:
+If you did everything correctly, these commands should result with the same version:
 
 ```
 poetry version
 poetry run starknet-devnet --version
 ```
 
-Later, add a tag to the version update commit (Notice the `v`):
+Add a tag to the version update commit (Notice the `v`):
 
 ```
 git tag v<VERSION>
@@ -140,6 +140,6 @@ cd page && npm run deploy
 
 Lastly:
 
-- Check if CI and image publish worked after commit
+- Check if tests and version/image publishing ran successfully on CI
 - Generate release notes with the corresponding tag version on GitHub
 - Inform users on Telegram, [Discord Devnet channel](https://discord.com/channels/793094838509764618/985824027950055434), and [StarkNet Shamans](https://community.starknet.io/t/starknet-devnet/69).
