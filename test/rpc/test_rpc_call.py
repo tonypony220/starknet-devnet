@@ -3,10 +3,11 @@ Tests RPC rpc_call
 """
 
 from test.rpc.rpc_utils import rpc_call
-import pytest
 
+import pytest
 from starkware.starknet.public.abi import get_selector_from_name
 
+from starknet_devnet.blueprints.rpc.structures.types import RpcErrorCode
 from starknet_devnet.blueprints.rpc.utils import rpc_felt
 
 
@@ -145,8 +146,8 @@ def test_call_raises_on_incorrect_block_hash(deploy_info):
     )
 
     assert ex["error"] == {
-        "code": -1,
-        "message": "Calls must be made with block_id of the latest or pending block. Other block_id are not supported.",
+        "code": RpcErrorCode.INVALID_PARAMS.value,
+        "message": "Invalid params",
     }
 
 
