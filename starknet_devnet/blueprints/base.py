@@ -189,3 +189,12 @@ async def create_block():
     """Create empty block"""
     block = await state.starknet_wrapper.create_empty_block()
     return Response(block.dumps(), status=200, mimetype="application/json")
+
+
+@base.route("/fork_status", methods=["GET"])
+async def fork_status():
+    """Get fork status"""
+    config = state.starknet_wrapper.config
+    if config.fork_network:
+        return jsonify({"url": config.fork_network.url, "block": config.fork_block})
+    return jsonify({})

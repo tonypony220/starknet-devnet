@@ -17,3 +17,21 @@ The `--fork-block` parameter is optional and its value should be the block numbe
 All calls will first try Devnet's state and then fall back to the forking block.
 
 If you are forking another Devnet instance, keep in mind that it doesn't support polling specific blocks, but will always fall back to the currently latest block.
+
+## Get fork status
+```
+GET /fork_status
+```
+
+Response when in fork mode:
+```
+{
+    "url": "https://alpha4.starknet.io",
+    "block": 438839
+}
+```
+
+Response when not in fork mode:
+```
+{}
+```

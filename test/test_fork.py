@@ -4,6 +4,7 @@ Relying on the fact that devnet doesn't support specifying which block to query
 """
 
 import pytest
+import requests
 
 from starknet_devnet.constants import DEFAULT_INITIAL_BALANCE
 
@@ -11,6 +12,7 @@ from .account import get_nonce, invoke
 from .settings import APP_URL, HOST, bind_free_port
 from .shared import (
     ABI_PATH,
+    ALPHA_GOERLI2_URL,
     ALPHA_MAINNET_URL,
     CONTRACT_PATH,
     PREDEPLOY_ACCOUNT_CLI_ARGS,
@@ -300,3 +302,34 @@ def test_deploy_account():
 def test_deploy_with_udc():
     """Test that deploying with udc works when forking"""
     deploy_with_udc_test_body()
+
+
+@devnet_in_background(*TESTNET_FORK_PARAMS)
+def test_fork_status_forked():
+    """Test GET on /fork_status when forking"""
+    resp = requests.get(f"{APP_URL}/fork_status")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data.get("url") == ALPHA_GOERLI2_URL
+    assert data.get("block") is not None
+
+
+@devnet_in_background(
+    *TESTNET_FORK_PARAMS, "--fork-block", str(TESTNET_DEPLOYMENT_BLOCK)
+)
+def test_fork_status_forked_at_block():
+    """Test GET on /fork_status when forking a given block"""
+    resp = requests.get(f"{APP_URL}/fork_status")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data.get("url") == ALPHA_GOERLI2_URL
+    assert data.get("block") == TESTNET_DEPLOYMENT_BLOCK
+
+
+@devnet_in_background()
+def test_fork_status_not_forked():
+    """Test GET on /fork_status when not forking"""
+    resp = requests.get(f"{APP_URL}/fork_status")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data == {}
