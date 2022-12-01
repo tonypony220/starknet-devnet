@@ -132,11 +132,11 @@ git tag v<VERSION>
 git push origin v<VERSION>
 ```
 
-The documentation needs to be generated (assuming automatic doc deployment hasn't been implemented):
+Documentation is deployed automatically to https://shard-labs.github.io/starknet-devnet.
 
-```
-cd page && npm run deploy
-```
+- This process uses the FabijanC username and its private GitHub token set in the CircleCI project env vars.
+- This is done only after a new version is released.
+- This is initiated in `scripts/package_build_and_publish.sh`.
 
 Lastly:
 
