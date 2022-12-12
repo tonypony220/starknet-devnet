@@ -15,10 +15,9 @@ To get the code of the account (currently OpenZeppelin [v0.5.1](https://github.c
 You can use the accounts in e.g. [**starknet-hardhat-plugin**](https://github.com/Shard-Labs/starknet-hardhat-plugin) via:
 
 ```typescript
-const account = await starknet.getAccountFromAddress(
+const account = await starknet.OpenZeppelin.getAccountFromAddress(
   ADDRESS,
-  PRIVATE_KEY,
-  "OpenZeppelin"
+  PRIVATE_KEY
 );
 ```
 
