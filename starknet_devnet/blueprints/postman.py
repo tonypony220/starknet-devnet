@@ -5,10 +5,13 @@ Postman routes.
 import json
 
 from flask import Blueprint, jsonify, request
+from starkware.starknet.business_logic.transaction.objects import InternalL1Handler
+from starkware.starknet.definitions.error_codes import StarknetErrorCode
 from starkware.starkware_utils.error_handling import StarkErrorCode
 
+from starknet_devnet.blueprints.base import hex_converter
 from starknet_devnet.state import state
-from starknet_devnet.util import StarknetDevnetException
+from starknet_devnet.util import StarknetDevnetException, to_int_array
 
 postman = Blueprint("postman", __name__, url_prefix="/postman")
 
@@ -55,3 +58,46 @@ async def flush():
 
     result_dict = await state.starknet_wrapper.postman_flush()
     return jsonify(result_dict)
+
+
+@postman.route("/send_message_to_l2", methods=["POST"])
+async def send_message_to_l2():
+    """L1 to L2 message mock endpoint"""
+    request_json = request.json or {}
+
+    # Generate transactions
+    transaction = InternalL1Handler.create(
+        contract_address=hex_converter(request_json, "l2_contract_address"),
+        entry_point_selector=hex_converter(request_json, "entry_point_selector"),
+        calldata=[
+            hex_converter(request_json, "l1_contract_address"),
+            *hex_converter(request_json, "payload", to_int_array),
+        ],
+        nonce=hex_converter(request_json, "nonce"),
+        chain_id=state.starknet_wrapper.get_state().general_config.chain_id.value,
+    )
+
+    result = await state.starknet_wrapper.mock_message_to_l2(transaction)
+    return jsonify({"transaction_hash": result})
+
+
+@postman.route("/consume_message_from_l2", methods=["POST"])
+async def consume_message_from_l2():
+    """L2 to L1 message mock endpoint"""
+    request_json = request.json or {}
+
+    from_address = hex_converter(request_json, "l2_contract_address")
+    to_address = hex_converter(request_json, "l1_contract_address")
+    payload = hex_converter(request_json, "payload", to_int_array)
+
+    try:
+        result = await state.starknet_wrapper.consume_message_from_l2(
+            from_address, to_address, payload
+        )
+        return jsonify({"message_hash": result})
+    except AssertionError as err:
+        raise StarknetDevnetException(
+            code=StarknetErrorCode.L1_TO_L2_MESSAGE_ZEROED_COUNTER,
+            message="Message is fully consumed or does not exist.",
+            status_code=500,
+        ) from err
