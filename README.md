@@ -10,7 +10,10 @@ Aims to mimic StarkNet's Alpha testnet, but with simplified functionality.
 
 ## 🌐 Docs
 
-[Click here](https://shard-labs.github.io/starknet-devnet/) for the documentation.
+On the following links you can find the documentation of:
+
+- [the latest official release](https://shard-labs.github.io/starknet-devnet/)
+- [the latest master commit (not officially released)](https://github.com/Shard-Labs/starknet-devnet/tree/master/page/docs)
 
 ## ✏️ Contributing
 
@@ -21,4 +24,3 @@ We ❤️ and encourage all contributions!
 ## 🙌 Special Thanks
 
 Special thanks to all the [contributors](https://github.com/Shard-Labs/starknet-devnet/graphs/contributors)!
-
