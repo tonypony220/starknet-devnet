@@ -13,7 +13,7 @@ from starkware.starknet.services.api.contract_class import ContractClass
 
 from .util import warn
 
-__version__ = "0.4.2"
+__version__ = "0.4.3"
 
 
 def patched_pedersen_hash(left: int, right: int) -> int:
