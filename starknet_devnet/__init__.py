@@ -1,6 +1,6 @@
 """
 Contains the server implementation and its utility classes and functions.
-This file contains monkeypatches used throught the project. Advice for monkeypatch atomicity:
+This file contains monkeypatches used across the project. Advice for monkeypatch atomicity:
 - Define a patching function
     - The function should import the places to be patched
     - The function can define the implementation to use for overwriting
@@ -13,7 +13,7 @@ This file contains monkeypatches used throught the project. Advice for monkeypat
 import os
 import sys
 
-__version__ = "0.4.3"
+__version__ = "0.4.4"
 
 
 def _patch_pedersen_hash():
