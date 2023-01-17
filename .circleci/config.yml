@@ -13,6 +13,7 @@ aliases:
     requires:
       - test_py_min
       - test_py_max
+      - test_py_max_rust
       - image_build
       - image_build_arm
 
