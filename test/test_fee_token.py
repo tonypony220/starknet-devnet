@@ -5,8 +5,8 @@ import json
 import pytest
 import requests
 from starkware.starknet.public.abi import get_selector_from_name
-from starknet_devnet.chargeable_account import ChargeableAccount
 
+from starknet_devnet.chargeable_account import ChargeableAccount
 from starknet_devnet.fee_token import FeeToken
 from starknet_devnet.server import app
 

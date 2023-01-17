@@ -91,6 +91,7 @@ def get_estimate_fee_request_dict(
         "type": "INVOKE_FUNCTION",
     }
 
+
 # pylint: disable=too-many-arguments
 def get_estimated_fee(
     calls: List[AccountCall],
