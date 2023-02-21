@@ -10,6 +10,7 @@ import subprocess
 import time
 from typing import IO, List
 
+import pytest
 import requests
 from starkware.starknet.cli.starknet_cli import get_salt
 from starkware.starknet.definitions.error_codes import StarknetErrorCode
@@ -302,6 +303,14 @@ def assert_transaction_receipt_not_received(tx_hash: str, feeder_gateway_url=APP
     )
 
 
+def _add_block_specifier(args: List[str], block_number=None, block_hash=None):
+    if block_number is not None:
+        args.extend(["--block_number", block_number])
+
+    if block_hash is not None:
+        args.extend(["--block_hash", block_hash])
+
+
 # pylint: disable=too-many-arguments
 def estimate_fee(
     function,
@@ -311,6 +320,7 @@ def estimate_fee(
     signature=None,
     nonce=None,
     block_number=None,
+    block_hash=None,
     feeder_gateway_url=APP_URL,
 ):
     """Wrapper around starknet estimate_fee. Returns fee in wei."""
@@ -333,8 +343,7 @@ def estimate_fee(
     if nonce is not None:
         args.extend(["--nonce", str(nonce)])
 
-    if block_number is not None:
-        args.extend(["--block_number", str(block_number)])
+    _add_block_specifier(args, block_number=block_number, block_hash=block_hash)
 
     output = run_starknet(args, gateway_url=feeder_gateway_url)
 
@@ -347,7 +356,8 @@ def call(
     address: str,
     abi_path: str,
     inputs=None,
-    block_number="latest",  # Starknet CLI defaults to pending
+    block_number=None,  # Starknet CLI defaults to pending
+    block_hash=None,
     feeder_gateway_url=APP_URL,
 ):
     """Wrapper around starknet call"""
@@ -359,9 +369,10 @@ def call(
         address,
         "--abi",
         abi_path,
-        "--block_number",
-        block_number,
     ]
+
+    _add_block_specifier(args, block_number=block_number, block_hash=block_hash)
+
     if inputs:
         args.extend(["--inputs", *inputs])
 
@@ -426,11 +437,19 @@ def assert_contract_class(actual_class: ContractClass, expected_class_path: str)
 
 
 def assert_storage(
-    address: str, key: str, expected_value: str, feeder_gateway_url=APP_URL
+    address: str,
+    key: str,
+    expected_value: str,
+    block_number=None,
+    block_hash=None,
+    feeder_gateway_url=APP_URL,
 ):
     """Asserts the storage value stored at (address, key)."""
+    args = ["get_storage_at", "--contract_address", address, "--key", key]
+    _add_block_specifier(args, block_number=block_number, block_hash=block_hash)
+
     output = run_starknet(
-        ["get_storage_at", "--contract_address", address, "--key", key],
+        args,
         gateway_url=feeder_gateway_url,
     )
     assert_equal(output.stdout.rstrip(), expected_value)
@@ -687,3 +706,31 @@ class DevnetBackgroundProc:
 def read_stream(stream: IO, encoding="utf-8") -> str:
     """Return stdout and stderr of `proc`"""
     return stream.read().decode(encoding)
+
+
+class ErrorExpector:
+    """
+    Use this wrapper to assert that a block of code will raise
+    a ReturnCodeAssertionError with the expected exception type
+    """
+
+    def __init__(self, expected_exc_type: Exception):
+        self.expected_exc_type = expected_exc_type
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if not exc_type:
+            pytest.fail(f"Should have failed with {self.expected_exc_type}")
+
+        if exc_type is ReturnCodeAssertionError:
+            assert str(self.expected_exc_type) in str(exc_val)
+            return True
+
+        return False
+
+
+def demand_block_creation():
+    """Demand block creation. Useful when devnet started with --blocks-on-demand"""
+    return requests.post(f"{APP_URL}/create_block_on_demand")
