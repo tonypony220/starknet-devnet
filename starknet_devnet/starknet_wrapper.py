@@ -737,7 +737,7 @@ class StarknetWrapper:
 
     async def generate_latest_block(self, block_hash=None) -> StarknetBlock:
         """
-        Generate new block with pending transactions in --blocks-on-demand mode.
+        Generate new block with pending transactions or empty block.
         Block hash can be specified in special cases.
         """
 
