@@ -211,6 +211,7 @@ def test_declaration_and_deployment():
         contract_path=CONTRACT_PATH,
         account_address=PREDEPLOYED_ACCOUNT_ADDRESS,
         private_key=PREDEPLOYED_ACCOUNT_PRIVATE_KEY,
+        max_fee=int(4e16),
     )
     contract_class_hash = declare_info["class_hash"]
     assert_hex_equal(contract_class_hash, EXPECTED_CLASS_HASH)

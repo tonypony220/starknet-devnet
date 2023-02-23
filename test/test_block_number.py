@@ -81,6 +81,7 @@ def test_block_number_incremented_on_declare():
         FAILING_CONTRACT_PATH,
         account_address=PREDEPLOYED_ACCOUNT_ADDRESS,
         private_key=PREDEPLOYED_ACCOUNT_PRIVATE_KEY,
+        max_fee=int(4e16),
     )
 
     block_number_after = my_get_block_number(deploy_info["address"])

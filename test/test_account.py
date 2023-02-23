@@ -33,6 +33,7 @@ from .util import (
     devnet_in_background,
     get_transaction_receipt,
     load_file_content,
+    mint,
 )
 
 INVOKE_CONTENT = load_file_content("invoke.json")
@@ -88,14 +89,17 @@ def test_account_contract_deploy():
 @devnet_in_background()
 def test_invoking_another_contract():
     """Test invoking another contract through a newly deployed (not predeployed) account."""
+    max_fee = int(4e16)
     deploy_info = deploy_empty_contract()
     account_address = deploy_account_contract(salt=SALT)["address"]
     to_address = deploy_info["address"]
 
+    # add funds to new account
+    mint(account_address, max_fee)
+
     # execute increase_balance call
     calls = [(to_address, "increase_balance", [10, 20])]
-    # setting max_fee=0 skips fee subtraction, otherwise account would need funds
-    tx_hash = invoke(calls, account_address, PRIVATE_KEY, 0, max_fee=0)
+    tx_hash = invoke(calls, account_address, PRIVATE_KEY, 0, max_fee=max_fee)
 
     assert_tx_status(tx_hash, "ACCEPTED_ON_L2")
 
@@ -231,17 +235,20 @@ def test_insufficient_balance():
 @devnet_in_background()
 def test_multicall():
     """Test making multiple calls."""
+    max_fee = int(4e16)
     deploy_info = deploy_empty_contract()
     account_address = deploy_account_contract(salt=SALT)["address"]
     to_address = deploy_info["address"]
+
+    # add funds to new account
+    mint(account_address, max_fee)
 
     # execute increase_balance calls
     calls = [
         (to_address, "increase_balance", [10, 20]),
         (to_address, "increase_balance", [30, 40]),
     ]
-    # setting max_fee=0 skips fee subtraction, otherwise account would need funds
-    tx_hash = invoke(calls, account_address, PRIVATE_KEY, max_fee=0)
+    tx_hash = invoke(calls, account_address, PRIVATE_KEY, max_fee=max_fee)
 
     assert_tx_status(tx_hash, "ACCEPTED_ON_L2")
 

@@ -184,6 +184,7 @@ def test_declare_and_get_class_by_hash():
         contract_path=CONTRACT_PATH,
         account_address=PREDEPLOYED_ACCOUNT_ADDRESS,
         private_key=PREDEPLOYED_ACCOUNT_PRIVATE_KEY,
+        max_fee=int(4e16),
     )
     assert int(declare_info["class_hash"], 16) == int(EXPECTED_CLASS_HASH, 16)
     assert_tx_status(declare_info["tx_hash"], "ACCEPTED_ON_L2")

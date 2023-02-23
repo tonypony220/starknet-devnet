@@ -62,7 +62,11 @@ from .block_info_generator import BlockInfoGenerator
 from .blocks import DevnetBlocks
 from .blueprints.rpc.structures.types import BlockId, Felt
 from .chargeable_account import ChargeableAccount
-from .constants import DUMMY_STATE_ROOT, STARKNET_CLI_ACCOUNT_CLASS_HASH
+from .constants import (
+    DUMMY_STATE_ROOT,
+    LEGACY_TX_VERSION,
+    STARKNET_CLI_ACCOUNT_CLASS_HASH,
+)
 from .devnet_config import DevnetConfig
 from .fee_token import FeeToken
 from .forked_state import get_forked_starknet
@@ -309,7 +313,9 @@ class StarknetWrapper:
         """
 
         state = self.get_state()
-        async with self.__get_transaction_handler() as tx_handler:
+        async with self.__get_transaction_handler(
+            external_tx=external_tx
+        ) as tx_handler:
             tx_handler.internal_tx = InternalDeclare.from_external(
                 external_tx, state.general_config
             )
@@ -342,7 +348,7 @@ class StarknetWrapper:
         )
         return block_info
 
-    def __get_transaction_handler(self):
+    def __get_transaction_handler(self, external_tx=None):
         class TransactionHandler:
             """Class for with-blocks in transactions"""
 
@@ -357,7 +363,21 @@ class StarknetWrapper:
                 self.starknet_wrapper = starknet_wrapper
                 self.preserved_block_info = starknet_wrapper._update_block_number()
 
+            def _check_tx_fee(self, transaction):
+                if not hasattr(transaction, "max_fee"):
+                    return
+                if (
+                    transaction.version != LEGACY_TX_VERSION
+                    and transaction.max_fee == 0
+                    and not self.starknet_wrapper.config.allow_max_fee_zero
+                ):
+                    raise StarknetDevnetException(
+                        code=StarknetErrorCode.OUT_OF_RANGE_FEE,
+                        message="max_fee == 0 is not supported.",
+                    )
+
             async def __aenter__(self):
+                self._check_tx_fee(external_tx)
                 return self
 
             async def __aexit__(
@@ -433,7 +453,9 @@ class StarknetWrapper:
             deployer_address=0,
         )
 
-        async with self.__get_transaction_handler() as tx_handler:
+        async with self.__get_transaction_handler(
+            external_tx=external_tx
+        ) as tx_handler:
             tx_handler.internal_tx = InternalDeployAccount.from_external(
                 external_tx, state.general_config
             )
@@ -473,7 +495,9 @@ class StarknetWrapper:
 
         tx_hash = internal_tx.hash_value
 
-        async with self.__get_transaction_handler() as tx_handler:
+        async with self.__get_transaction_handler(
+            external_tx=deploy_transaction
+        ) as tx_handler:
             tx_handler.internal_tx = internal_tx
             await self.get_state().state.set_contract_class(
                 class_hash=internal_tx.class_hash, contract_class=contract_class
@@ -495,8 +519,9 @@ class StarknetWrapper:
     async def invoke(self, external_tx: InvokeFunction):
         """Perform invoke according to specifications in `transaction`."""
         state = self.get_state()
-
-        async with self.__get_transaction_handler() as tx_handler:
+        async with self.__get_transaction_handler(
+            external_tx=external_tx
+        ) as tx_handler:
             tx_handler.internal_tx = InternalInvokeFunction.from_external(
                 external_tx, state.general_config
             )
