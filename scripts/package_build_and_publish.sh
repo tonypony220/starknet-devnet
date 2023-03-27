@@ -15,12 +15,10 @@ LOCAL_VERSION_INDEX=$(echo "$PYPI_VERSIONS" | jq "index( \"$LOCAL_VERSION\" )")
 # Building is executed regardles of versions
 poetry build
 
-if [ "$LOCAL_VERSION_INDEX" != "null"  ]; then
+if [ "$LOCAL_VERSION_INDEX" != "null" ]; then
     echo "Latest PyPI version is already equal to the local version."
     echo "Publishing skipped"
 else
-    echo "would publish"
-    exit 0
     # publish Python package
     poetry publish --username "$PYPI_USER" --password "$PYPI_PASS"
 
@@ -29,7 +27,7 @@ else
 
     git config --global user.email "$GIT_USER@users.noreply.github.com"
     git config --global user.name "$GIT_USER"
-    echo "machine github.com login $GIT_USER password $GITHUB_TOKEN" > ~/.netrc
+    echo "machine github.com login $GIT_USER password $GITHUB_TOKEN" >~/.netrc
 
     # [skip ci] to avoid gh-pages erroring on circleci
     LATEST_COMMIT_HASH=$(git rev-parse HEAD)
