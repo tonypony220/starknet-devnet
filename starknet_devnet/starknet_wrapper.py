@@ -1,3 +1,4 @@
+# pylint: disable=too-many-lines
 """
 This module introduces `StarknetWrapper`, a wrapper class of
 starkware.starknet.testing.starknet.Starknet.
@@ -143,7 +144,7 @@ class StarknetWrapper:
         self.__latest_state = None
         self._contract_classes: Dict[int, Union[DeprecatedCompiledClass, ContractClass]]
         """If v2 - store sierra, otherwise store old class; needed for get_class_by_hash"""
-
+        self.genesis_block_number = None
         self._compiler = (
             CustomContractClassCompiler(config.cairo_compiler_manifest)
             if config.cairo_compiler_manifest
@@ -227,6 +228,9 @@ class StarknetWrapper:
         state_update = await self.update_pending_state()
         await self.blocks.generate_pending(transactions, state, state_update)
         block = await self.generate_latest_block(block_hash=0)
+
+        # Set the genesis block number
+        self.genesis_block_number = block.block_number
 
         for transaction in transactions:
             transaction.set_block(block=block)
@@ -568,14 +572,13 @@ class StarknetWrapper:
 
         assert isinstance(block_id, dict)
         if block_id.get("block_hash"):
-            # takes care of parsing
-            block = await self.blocks.get_by_hash(block_id["block_hash"])
-            return self.blocks.get_state(block.block_number)
+            numeric_hash = self.blocks.get_numeric_hash(block_id.get("block_hash"))
+            return self.blocks.get_state(numeric_hash)
 
-        block_number = block_id.get("block_number")
         try:
-            parsed_id = int(block_number)
-            return self.blocks.get_state(parsed_id)
+            block_number = block_id.get("block_number")
+            block = await self.blocks.get_by_number(int(block_number))
+            return self.blocks.get_state(block.block_hash)
         except ValueError:
             pass
 
@@ -939,3 +942,71 @@ class StarknetWrapper:
         cached_state = self.get_state().state
         class_hash = await cached_state.get_class_hash_at(address)
         return bool(class_hash)
+
+    async def abort_blocks(self, starting_block: StarknetBlock) -> str:
+        """
+        Abort blocks.
+        """
+        # Check if genesis block can be aborted.
+        if starting_block.block_number == self.genesis_block_number:
+            raise StarknetDevnetException(
+                code=StarknetErrorCode.OUT_OF_RANGE_BLOCK_ID,
+                message="Aborting genesis block is not supported.",
+            )
+
+        # Check if blocks can be aborted in fork mode.
+        if (
+            self.config.fork_block
+            and self.config.fork_block >= starting_block.block_number
+        ):
+            raise StarknetDevnetException(
+                code=StarknetErrorCode.OUT_OF_RANGE_BLOCK_ID,
+                message="Aborting forked blocks is not supported.",
+            )
+
+        # Create new block with pending transactions if possible.
+        # We need to store them so later we can change the status to REJECTED.
+        if self.blocks.is_block_pending():
+            await self.generate_latest_block()
+
+        aborted_blocks = []
+        last_block = await self.blocks.get_last_block()
+
+        # Before the while loop to abort blocks, check if block numbers are set.
+        if not (last_block.block_number and starting_block.block_number):
+            raise StarknetDevnetException(
+                code=StarknetErrorCode.BLOCK_NOT_FOUND,
+                status_code=400,
+                message="Block cannot be aborted. Make sure you are aborting an accepted block.",
+            )
+
+        # Abort blocks from latest to starting (iterating backwards).
+        reached_starting_block = False
+        while not reached_starting_block:
+            reached_starting_block = (
+                last_block.block_number == starting_block.block_number
+            )
+
+            # Abort latest_block.
+            aborted_block_hash = await self.blocks.abort_latest_block(
+                hex(last_block.block_hash)
+            )
+
+            # Reject transactions.
+            for transaction in last_block.transactions:
+                await self.transactions.reject_transaction(
+                    tx_hash=transaction.transaction_hash
+                )
+
+            aborted_blocks.append(hex(aborted_block_hash))
+            parent = await self.blocks.get_by_hash(hex(last_block.parent_block_hash))
+
+            if parent.block_number is not None:
+                last_block = parent
+            else:
+                break
+
+        # Revert state.
+        self.starknet.state = self.blocks.get_state(last_block.block_hash)
+
+        return aborted_blocks

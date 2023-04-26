@@ -77,9 +77,9 @@ class DevnetBlocks:
     def __init__(self, origin: Origin, lite=False) -> None:
         self.origin = origin
         self.lite = lite
-        self.__num2block: Dict[int, StarknetBlock] = {}
+        self.__hash2block: Dict[int, StarknetBlock] = {}
         self.__state_updates: Dict[int, BlockStateUpdate] = {}
-        self.__hash2num: Dict[str, int] = {}
+        self.__num2hash: Dict[int, int] = {}
         self.__pending_block: StarknetBlock = None
         self.__pending_state_update: BlockStateUpdate = None
         self.__pending_signatures: Sequence[List[int]] = None
@@ -87,12 +87,11 @@ class DevnetBlocks:
 
     async def get_last_block(self) -> StarknetBlock:
         """Returns the last block stored so far."""
-        number_of_blocks = self.get_number_of_blocks()
-        return await self.get_by_number(number_of_blocks - 1)
+        return await self.get_by_number(self.get_number_of_accepted_blocks() - 1)
 
-    def get_number_of_blocks(self) -> int:
-        """Returns the number of blocks stored so far."""
-        return len(self.__num2block) + self.origin.get_number_of_blocks()
+    def get_number_of_accepted_blocks(self) -> int:
+        """Returns the number of not aborted blocks."""
+        return len(self.__num2hash) + self.origin.get_number_of_blocks()
 
     def __assert_block_number_in_range(self, block_number: BlockIdentifier):
         if block_number < 0:
@@ -102,9 +101,9 @@ class DevnetBlocks:
             raise StarknetDevnetException(
                 code=StarkErrorCode.MALFORMED_REQUEST, message=message
             )
-
-        if block_number >= self.get_number_of_blocks():
-            message = f"Block number too high. There are currently {len(self.__num2block)} blocks; got: {block_number}."
+        number_of_accepted_blocks = self.get_number_of_accepted_blocks()
+        if block_number >= number_of_accepted_blocks:
+            message = f"Block number too high. There are currently {number_of_accepted_blocks} blocks; got: {block_number}."
             raise StarknetDevnetException(
                 code=StarknetErrorCode.BLOCK_NOT_FOUND, message=message
             )
@@ -120,13 +119,13 @@ class DevnetBlocks:
             block_number = LATEST_BLOCK_ID
 
         if block_number == LATEST_BLOCK_ID:
-            if self.__num2block:
+            if self.__num2hash:
                 return await self.get_last_block()
             return await self.origin.get_block_by_number(block_number)
 
         self.__assert_block_number_in_range(block_number)
-        if block_number in self.__num2block:
-            return self.__num2block[block_number]
+        if block_number in self.__num2hash:
+            return self.__hash2block[self.__num2hash[block_number]]
 
         return await self.origin.get_block_by_number(block_number)
 
@@ -136,9 +135,8 @@ class DevnetBlocks:
         """
         numeric_hash = _parse_block_hash(block_hash)
 
-        if numeric_hash in self.__hash2num:
-            block_number = self.__hash2num[int(block_hash, 16)]
-            return await self.get_by_number(block_number)
+        if numeric_hash in self.__hash2block:
+            return self.__hash2block[numeric_hash]
 
         return await self.origin.get_block_by_hash(block_hash)
 
@@ -152,10 +150,10 @@ class DevnetBlocks:
         if block_hash:
             numeric_hash = _parse_block_hash(block_hash)
 
-            if numeric_hash not in self.__hash2num:
+            if numeric_hash not in self.__hash2block:
                 return await self.origin.get_state_update(block_hash=block_hash)
 
-            block_number = self.__hash2num[numeric_hash]
+            block_number = self.__hash2block[numeric_hash].block_number
 
         block_number = _parse_block_number(block_number)
 
@@ -168,14 +166,15 @@ class DevnetBlocks:
         # now either an int or "latest"
         if block_number != LATEST_BLOCK_ID:
             self.__assert_block_number_in_range(block_number)
-            if block_number in self.__state_updates:
-                return self.__state_updates[block_number]
+            numeric_hash = self.__num2hash[block_number]
+            if numeric_hash in self.__state_updates:
+                return self.__state_updates[numeric_hash]
 
-            return await self.origin.get_state_update(block_number=block_number)
+            return await self.origin.get_state_update(block_hash=numeric_hash)
 
-        # now we know the block ID is "latest"
+        # now it's the latest
         return (
-            self.__state_updates.get(self.get_number_of_blocks() - 1)
+            self.__state_updates.get((await self.get_last_block()).block_hash)
             or await self.origin.get_state_update()
         )
 
@@ -194,7 +193,7 @@ class DevnetBlocks:
         internal_transactions = [tx.internal_tx for tx in transactions or []]
         transaction_receipts = tuple(tx.get_execution() for tx in transactions or ())
 
-        block_number = self.get_number_of_blocks()
+        block_number = self.get_number_of_accepted_blocks()
         if block_number == 0:
             parent_block_hash = 0
         else:
@@ -272,7 +271,7 @@ class DevnetBlocks:
         state_root = DUMMY_STATE_ROOT
         block_dict["state_root"] = state_root.hex()
 
-        block_number = self.get_number_of_blocks()
+        block_number = self.get_number_of_accepted_blocks()
         block_dict["block_number"] = block_number
 
         if self.lite or is_empty_block:
@@ -283,7 +282,7 @@ class DevnetBlocks:
             )
 
         block_dict["block_hash"] = hex(block_hash)
-        self.__hash2num[block_hash] = block_number
+        self.__num2hash[block_number] = block_hash
 
         if self.__pending_state_update is not None:
             self.__pending_state_update = BlockStateUpdate(
@@ -292,17 +291,40 @@ class DevnetBlocks:
                 new_root=self.__pending_state_update.new_root,
                 state_diff=self.__pending_state_update.state_diff,
             )
-        self.__state_updates[block_number] = self.__pending_state_update
+        self.__state_updates[block_hash] = self.__pending_state_update
         self.__pending_state_update = None
 
         block = StarknetBlock.load(block_dict)
-        self.__num2block[block_number] = block
-        self.__state_archive.store(block_number, state)
+        self.__hash2block[block.block_hash] = block
+        self.__state_archive.store(block_hash, state)
 
         self.__pending_block = None
         self.__pending_signatures = None
         return block
 
-    def get_state(self, block_number: int) -> StarknetState:
+    def get_state(self, block_hash: int) -> StarknetState:
         """Return state at block with `number`"""
-        return self.__state_archive.get(block_number)
+        return self.__state_archive.get(block_hash)
+
+    @staticmethod
+    def get_numeric_hash(block_hash: int):
+        """Get numeric hash."""
+        return _parse_block_hash(block_hash)
+
+    async def abort_latest_block(self, block_hash: str) -> str:
+        """
+        Abort latest block.
+        """
+        numeric_hash = _parse_block_hash(block_hash)
+        block = self.__hash2block[numeric_hash]
+
+        # This is done like this because the block object's properties cannot be modified
+        block_dict = block.dump()
+        block_dict["status"] = BlockStatus.ABORTED.name
+        block_dict["transaction_receipts"] = None
+        del self.__num2hash[block_dict["block_number"]]
+        block_dict["block_number"] = None
+        self.__hash2block[numeric_hash] = StarknetBlock.load(block_dict)
+        self.__state_archive.remove(numeric_hash)
+
+        return block.block_hash
