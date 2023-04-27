@@ -30,7 +30,10 @@ class DefaultContractClassCompiler(ContractClassCompiler):
     """Uses the default internal cairo-lang compiler"""
 
     def compile_contract_class(self, contract_class: ContractClass) -> CompiledClass:
-        return compile_contract_class(contract_class)
+        return compile_contract_class(
+            contract_class,
+            compiler_args="--add-pythonic-hints --allowed-libfuncs-list-name experimental_v0.1.0",
+        )
 
 
 class CustomContractClassCompiler(ContractClassCompiler):
@@ -40,7 +43,6 @@ class CustomContractClassCompiler(ContractClassCompiler):
         self.compiler_manifest = compiler_manifest
 
     def compile_contract_class(self, contract_class: ContractClass) -> CompiledClass:
-
         with tempfile.TemporaryDirectory() as tmp_dir:
             contract_json = os.path.join(tmp_dir, "contract.json")
             contract_casm = os.path.join(tmp_dir, "contract.casm")
