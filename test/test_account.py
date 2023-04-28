@@ -339,7 +339,6 @@ def test_events():
     assert_events(invoke_tx_hash, "test/expected/invoke_receipt_account_event.json")
 
 
-
 @pytest.mark.account
 @devnet_in_background(*PREDEPLOY_ACCOUNT_CLI_ARGS)
 def test_get_nonce_endpoint():
