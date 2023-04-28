@@ -60,10 +60,10 @@ PUBLIC_KEY = private_to_stark_key(PRIVATE_KEY)
 
 def get_nonce(
     account_address: str,
-    feeder_gateway_url= APP_URL,
+    feeder_gateway_url=APP_URL,
     block_number: Optional[BlockIdentifier] = "pending",
 ) -> int:
-    """Get nonce"""
+    """Get nonce."""
     params = {"contractAddress": account_address}
     if block_number is not None:
         params["blockNumber"] = block_number
