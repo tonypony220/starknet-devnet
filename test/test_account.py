@@ -339,10 +339,6 @@ def test_events():
     assert_events(invoke_tx_hash, "test/expected/invoke_receipt_account_event.json")
 
 
-def get_nonce_with_request(address: str):
-    """Do GET on /get_nonce for `address`"""
-    return requests.get(f"{APP_URL}/feeder_gateway/get_nonce?contractAddress={address}")
-
 
 @pytest.mark.account
 @devnet_in_background(*PREDEPLOY_ACCOUNT_CLI_ARGS)
@@ -351,9 +347,8 @@ def test_get_nonce_endpoint():
 
     account_address = PREDEPLOYED_ACCOUNT_ADDRESS
 
-    initial_resp = get_nonce_with_request(address=account_address)
-    assert initial_resp.status_code == 200
-    assert initial_resp.json() == "0x0"
+    initial_nonce = get_nonce(account_address=account_address)
+    assert initial_nonce == 0
 
     deployment_info = declare_and_deploy(
         contract=CONTRACT_PATH,
@@ -362,9 +357,8 @@ def test_get_nonce_endpoint():
         inputs=[0],
     )
 
-    final_resp = get_nonce_with_request(address=account_address)
-    assert final_resp.status_code == 200
-    assert final_resp.json() == "0x2"  # declare and deploy
+    final_nonce = get_nonce(account_address=account_address)
+    assert final_nonce == 2  # declare and deploy
 
     invoke_tx_hash = invoke(
         calls=[(deployment_info["address"], "increase_balance", [10, 20])],
@@ -373,6 +367,5 @@ def test_get_nonce_endpoint():
     )
     assert_transaction(invoke_tx_hash, "ACCEPTED_ON_L2")
 
-    final_resp = get_nonce_with_request(address=account_address)
-    assert final_resp.status_code == 200
-    assert final_resp.json() == "0x3"  # invoke
+    final_nonce = get_nonce(account_address=account_address)
+    assert final_nonce == 3  # invoke
