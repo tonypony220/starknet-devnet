@@ -340,7 +340,10 @@ def test_events():
 
 
 def get_nonce_with_request(address: str):
-    """Do GET on /get_nonce for `address`"""
+    """
+    Do GET on /get_nonce for `address`
+    This function is different from get_nonce in account.py as it allows testing the whole response
+    """
     return requests.get(f"{APP_URL}/feeder_gateway/get_nonce?contractAddress={address}")
 
 
