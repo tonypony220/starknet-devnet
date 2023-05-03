@@ -319,7 +319,7 @@ def estimate_fee(
 def call(
     function: str,
     address: str,
-    abi_path: str,
+    abi_path: Optional[str] = None,
     inputs=None,
     block_number=None,  # Starknet CLI defaults to pending - we shouldn't rely on that
     block_hash=None,
@@ -332,14 +332,15 @@ def call(
         function,
         "--address",
         address,
-        "--abi",
-        abi_path,
     ]
 
-    _add_block_specifier(args, block_number=block_number, block_hash=block_hash)
+    if abi_path:
+        args.extend(["--abi", abi_path])
 
     if inputs:
         args.extend(["--inputs", *inputs])
+
+    _add_block_specifier(args, block_number=block_number, block_hash=block_hash)
 
     output = run_starknet(args, gateway_url=feeder_gateway_url)
 
