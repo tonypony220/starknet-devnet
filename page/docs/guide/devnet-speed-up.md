@@ -1,12 +1,14 @@
 ---
 sidebar_position: 17
 ---
+
 # Devnet speed-up troubleshooting
 
 If you are not satisfied with Devnet's performance, consider the following:
 
 - Make sure you are using the latest version of Devnet because new improvements are added regularly.
 - Try using [lite-mode](lite-mode.md).
+- Try using Devnet with [Cairo VM implemented in Rust](run.md#Run-with-the-Rust-implementation-of-Cairo-VM).
 - If minting tokens, set the [lite parameter](mint-token.md#mint-lite).
 - Using an [installed Devnet](./../intro.md#install) should be faster than [running it with Docker](run.md#run-with-docker).
 - If you are [running Devnet with Docker](run.md#run-with-docker) on an ARM machine (e.g. M1), make sure you are using [the appropriate image tag](run.md#versions-and-tags)

@@ -14,7 +14,7 @@ const config = {
   onBrokenLinks: 'warn',
   onBrokenMarkdownLinks: 'warn',
   favicon: 'img/favicon.ico',
-  organizationName: 'SpaceShard',
+  organizationName: '0xSpaceShard',
   projectName: 'starknet-devnet',
   deploymentBranch: "gh-pages",
 
