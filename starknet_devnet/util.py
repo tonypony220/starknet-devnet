@@ -1,9 +1,10 @@
 """
 Utility functions used across the project.
 """
-
+import logging
 import os
 import sys
+import contextlib
 from dataclasses import dataclass
 from typing import Dict, List, Set, Tuple
 
@@ -243,3 +244,24 @@ def get_fee_estimation_info(tx_fee: int, gas_price: int):
 def warn(msg: str, file=sys.stderr):
     """Log a warning"""
     print(f"\033[93m{msg}\033[0m", file=file)
+
+
+class SuppressLogger:
+    def __init__(self, logger):
+        self.logger = logger
+
+    def __enter__(self):
+        self.logger.disabled = True
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.logger.disabled = False
+
+import importlib.util
+client_spec = importlib.util.find_spec("services.external_api.client")
+assert client_spec
+
+# FeederGatewayClient is implemented in such a way that it logs and raises;
+# this suppresses the logging
+suppress_feeder_gateaway_client_logger = SuppressLogger(
+    logging.getLogger("services.external_api.client")
+)
