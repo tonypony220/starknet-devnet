@@ -2,7 +2,6 @@
 
 import argparse
 import asyncio
-import contextlib
 import json
 import os
 import subprocess
@@ -23,6 +22,8 @@ from starkware.starknet.services.api.contract_class.contract_class import (
 from starkware.starknet.services.api.feeder_gateway.feeder_gateway_client import (
     FeederGatewayClient,
 )
+
+from starknet_devnet.util import suppress_feeder_gateaway_client_logger
 
 from . import __version__
 from .constants import (
@@ -151,9 +152,7 @@ def _get_feeder_gateway_client(url: str, block_id: str, n_retries: int = 1):
     )
 
     try:
-        # FeederGatewayClient is implemented in such a way that it logs and raises;
-        # this suppreses the logging
-        with contextlib.redirect_stderr(None):
+        with suppress_feeder_gateaway_client_logger:
             block = asyncio.run(feeder_gateway_client.get_block(block_number=block_id))
             block_number = block.block_number
     except InvalidURL:
