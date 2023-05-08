@@ -1,10 +1,10 @@
 """
 Utility functions used across the project.
 """
+import importlib.util
 import logging
 import os
 import sys
-import contextlib
 from dataclasses import dataclass
 from typing import Dict, List, Set, Tuple
 
@@ -247,6 +247,8 @@ def warn(msg: str, file=sys.stderr):
 
 
 class SuppressLogger:
+    """ctx mng to suppress logger"""
+
     def __init__(self, logger):
         self.logger = logger
 
@@ -256,7 +258,7 @@ class SuppressLogger:
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.logger.disabled = False
 
-import importlib.util
+
 client_spec = importlib.util.find_spec("services.external_api.client")
 assert client_spec
 

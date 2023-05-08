@@ -746,5 +746,3 @@ def assert_undeclared_class(resp=requests.Response):
     resp_body = resp.json()
     assert "code" in resp_body
     assert resp_body["code"] == str(StarknetErrorCode.UNDECLARED_CLASS)
-
-
