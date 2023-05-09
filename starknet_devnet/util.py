@@ -1,7 +1,6 @@
 """
 Utility functions used across the project.
 """
-import importlib.util
 import logging
 import os
 import sys
@@ -246,11 +245,13 @@ def warn(msg: str, file=sys.stderr):
     print(f"\033[93m{msg}\033[0m", file=file)
 
 
-class SuppressLogger:
-    """ctx mng to suppress logger"""
+class LogSuppressor:
+    """Context manager to suppress logger"""
 
-    def __init__(self, logger):
-        self.logger = logger
+    def __init__(self, logger_name):
+        # check logger exists
+        assert logger_name in logging.Logger.manager.loggerDict
+        self.logger = logging.getLogger(logger_name)
 
     def __enter__(self):
         self.logger.disabled = True
@@ -259,11 +260,6 @@ class SuppressLogger:
         self.logger.disabled = False
 
 
-client_spec = importlib.util.find_spec("services.external_api.client")
-assert client_spec
-
 # FeederGatewayClient is implemented in such a way that it logs and raises;
 # this suppresses the logging
-suppress_feeder_gateaway_client_logger = SuppressLogger(
-    logging.getLogger("services.external_api.client")
-)
+suppress_feeder_gateway_client_logger = LogSuppressor("services.external_api.client")

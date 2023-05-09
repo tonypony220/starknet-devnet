@@ -23,7 +23,7 @@ from starkware.starknet.services.api.feeder_gateway.feeder_gateway_client import
     FeederGatewayClient,
 )
 
-from starknet_devnet.util import suppress_feeder_gateaway_client_logger
+from starknet_devnet.util import suppress_feeder_gateway_client_logger
 
 from . import __version__
 from .constants import (
@@ -152,7 +152,7 @@ def _get_feeder_gateway_client(url: str, block_id: str, n_retries: int = 1):
     )
 
     try:
-        with suppress_feeder_gateaway_client_logger:
+        with suppress_feeder_gateway_client_logger:
             block = asyncio.run(feeder_gateway_client.get_block(block_number=block_id))
             block_number = block.block_number
     except InvalidURL:
