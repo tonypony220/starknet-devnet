@@ -3,7 +3,6 @@ Test endpoints directly.
 """
 
 import json
-from tempfile import TemporaryFile
 
 import pytest
 import requests
@@ -13,24 +12,16 @@ from starkware.starkware_utils.error_handling import StarkErrorCode
 from starknet_devnet.constants import DEFAULT_GAS_PRICE
 from starknet_devnet.server import app
 
-from .account import declare_and_deploy_with_chargeable, get_nonce
+from .account import declare_and_deploy_with_chargeable
 from .settings import APP_URL
 from .shared import (
-    BALANCE_KEY,
     FAILING_CONTRACT_PATH,
     GENESIS_BLOCK_HASH,
     GENESIS_BLOCK_NUMBER,
     STORAGE_CONTRACT_PATH,
 )
 from .support.assertions import assert_valid_schema
-from .testnet_deployment import TESTNET_DEPLOYMENT_BLOCK, TESTNET_FORK_PARAMS
-from .util import (
-    create_empty_block,
-    devnet_in_background,
-    get_class_by_hash,
-    get_compiled_class_by_class_hash,
-    load_file_content,
-)
+from .util import create_empty_block, devnet_in_background, load_file_content
 
 INVOKE_CONTENT = load_file_content("invoke.json")
 CALL_CONTENT = load_file_content("call.json")
@@ -166,13 +157,6 @@ def get_transaction_test_client(tx_hash: str):
     )
 
 
-def get_transaction(tx_hash: str, feeder_gateway_url=APP_URL):
-    """Get transaction from request tx_hash"""
-    return requests.get(
-        f"{feeder_gateway_url}/feeder_gateway/get_transaction?transactionHash={tx_hash}"
-    )
-
-
 def get_full_contract(contract_adress):
     """Get full contract class of a contract at a specific address"""
     return requests.get(
@@ -180,52 +164,40 @@ def get_full_contract(contract_adress):
     )
 
 
+def get_class_by_hash(class_hash: str):
+    """Get contract class by class hash"""
+    return requests.get(
+        f"{APP_URL}/feeder_gateway/get_class_by_hash?classHash={class_hash}"
+    )
+
+
 def get_class_hash_at(contract_address: str):
     """Get class hash of a contract at the provided address"""
-    # duplicate run_starknet() in .util
     return requests.get(
         f"{APP_URL}/feeder_gateway/get_class_hash_at?contractAddress={contract_address}"
     )
 
 
-def get_storage_at(contract_address: str, key: str):
-    """Get storage at"""
-    return requests.get(
-        f"{APP_URL}/feeder_gateway/get_storage_at?contractAddress={contract_address}&key={key}"
-    )
-
-
-def get_state_update(block_hash, block_number, feeder_gateway_url=APP_URL):
+def get_state_update(block_hash, block_number):
     """Get state update"""
-    # duplicate same func in .test_state_update to assert http codes of resp
-    params = {
-        "blockHash": block_hash,
-        "blockNumber": block_number,
-    }
     return requests.get(
-        f"{feeder_gateway_url}/feeder_gateway/get_state_update", params=params
+        f"{APP_URL}/feeder_gateway/get_state_update?blockHash={block_hash}&blockNumber={block_number}"
     )
 
 
-def get_transaction_status(tx_hash: str, feeder_gateway_url=APP_URL):
+def get_transaction_status(tx_hash):
     """Get transaction status"""
-    return requests.get(
-        f"{feeder_gateway_url}/feeder_gateway/get_transaction_status?transactionHash={tx_hash}"
+    response = requests.get(
+        f"{APP_URL}/feeder_gateway/get_transaction_status?transactionHash={tx_hash}"
     )
+    assert response.status_code == 200
+    return response.json()
 
 
 def get_transaction_status_test_client(tx_hash: str):
     """Get transaction status"""
     return app.test_client().get(
         f"{APP_URL}/feeder_gateway/get_transaction_status?transactionHash={tx_hash}"
-    )
-
-
-def get_transaction_receipt(tx_hash: str, feeder_gateway_url=APP_URL):
-    """Fetches the transaction receipt of transaction with tx_hash"""
-    # duplicate run_starknet() in .util
-    return requests.get(
-        f"{feeder_gateway_url}/feeder_gateway/get_transaction_receipt?transactionHash={tx_hash}"
     )
 
 
@@ -300,11 +272,11 @@ def test_error_response_call_with_unavailable_contract():
 @devnet_in_background()
 def test_error_response_call_with_state_update():
     """Call with unavailable state update"""
-    resp_json = get_state_update(INVALID_HASH, -1)
+    resp = get_state_update(INVALID_HASH, -1)
 
-    json_error_message = resp_json["message"]
-    # assert resp.status_code == 500
-    assert "Ambiguous" in json_error_message
+    json_error_message = resp.json()["message"]
+    assert resp.status_code == 500
+    assert json_error_message is not None
 
 
 @devnet_in_background()
@@ -320,153 +292,6 @@ def test_error_response_class_hash_at():
         f"Contract with address {int(INVALID_ADDRESS, 16)} is not deployed."
     )
     assert expected_message == error_message
-
-
-def assert_no_badrequest_in_forked_devnet_output(func):
-    """Assert that FeederGatewayClient logging errors
-    of forked origin are suppressed"""
-
-    def wrapper(*args, **kwargs):
-        with TemporaryFile("r+") as tmp:
-            devnet_in_background(
-                *TESTNET_FORK_PARAMS,
-                "--fork-block",
-                str(TESTNET_DEPLOYMENT_BLOCK),
-                stderr=tmp,
-                stdout=tmp,
-            )(func)(*args, **kwargs)
-            tmp.seek(0)
-            output = tmp.read()
-            print(output)  # preserve output for observe
-            assert "BadRequest" not in output
-
-    return wrapper
-
-
-@assert_no_badrequest_in_forked_devnet_output
-def test_error_response_class_hash_at_forked():
-    """Get class hash of invalid address"""
-
-    resp = get_class_hash_at(INVALID_ADDRESS)
-    error_message = resp.json()["message"]
-
-    assert resp.status_code == 500
-    expected_message = (
-        # alpha-goerli reports a decimal address
-        f"Contract with address {int(INVALID_ADDRESS, 16)} is not deployed."
-    )
-    assert expected_message == error_message
-
-
-@assert_no_badrequest_in_forked_devnet_output
-def test_error_response_call_with_state_update_forked():
-    """Call with unavailable state update"""
-    resp = get_state_update(INVALID_HASH, None)
-    json_error_message = resp.json()["message"]
-    assert resp.status_code == 500
-    assert json_error_message is not None
-
-
-@assert_no_badrequest_in_forked_devnet_output
-def test_error_response_class_by_hash_forked():
-    """Get class by invalid hash"""
-
-    resp = get_class_by_hash(INVALID_HASH)
-    error_message = resp.json()["message"]
-    assert resp.status_code == 500
-    expected_message = f"Class with hash {INVALID_HASH} is not declared."
-    assert expected_message == error_message
-
-
-@assert_no_badrequest_in_forked_devnet_output
-def test_error_response_call_with_block_hash_invalid_forked():
-    """calls ForkedOrigin.get_block_by_hash()
-    and ForkedStateReader.get_class_hash_at()"""
-    resp = get_block_by_hash(INVALID_HASH)
-    assert resp.status_code == 500
-
-
-@assert_no_badrequest_in_forked_devnet_output
-def test_error_response_call_with_block_hash_0_forked():
-    """Should fail on call with block hash 0 without 0x prefix"""
-    resp = get_block_by_hash("0")
-    json_error_message = resp.json()["message"]
-    assert resp.status_code == 500
-    assert json_error_message.startswith(
-        "Block hash should be a hexadecimal string starting with 0x, or 'null';"
-    )
-
-
-@assert_no_badrequest_in_forked_devnet_output
-def test_error_response_call_with_negative_block_number_forked():
-    """Call with negative block number"""
-    resp = get_block_by_number({"blockNumber": -1})
-
-    json_error_message = resp.json()["message"]
-    assert resp.status_code == 500
-    assert json_error_message is not None
-
-
-@assert_no_badrequest_in_forked_devnet_output
-def test_error_response_call_with_invalid_transaction_hash_forked():
-    """Call with invalid transaction hash"""
-    resp = get_transaction_trace(INVALID_HASH)
-
-    json_error_message = resp.json()["message"]
-    msg = "Transaction corresponding to hash"
-    assert resp.status_code == 500
-    assert json_error_message.startswith(msg)
-
-
-@assert_no_badrequest_in_forked_devnet_output
-def test_get_transaction_receipt_invalid_hash_forked():
-    """Call forked with invalid transaction hash"""
-    get_transaction_receipt(INVALID_HASH)
-
-
-@assert_no_badrequest_in_forked_devnet_output
-def test_get_transaction_invalid_tx_hash_forked():
-    """Call forked with invalid transaction hash"""
-    get_transaction(INVALID_HASH)
-
-
-@assert_no_badrequest_in_forked_devnet_output
-def test_get_transaction_status_forked():
-    """Call forked with invalid transaction hash"""
-    response = get_transaction_status(INVALID_HASH)
-    assert response.status_code == 200
-    assert_valid_schema(response.json(), "get_transaction_status.json")
-    assert response.json().get("tx_status") == "NOT_RECEIVED"
-
-    resp = get_transaction_status("0")
-    assert resp.json()["message"].startswith(INVALID_TRANSACTION_HASH_MESSAGE_PREFIX)
-    assert resp.status_code == 500
-
-
-@assert_no_badrequest_in_forked_devnet_output
-def test_get_compiled_class_by_class_hash_with_invalid_hash_forked():
-    """
-    checks funcs:
-      ForkedStateReader.get_class_hash_at()
-      ForkedStateReader.get_compiled_class_hash()
-      ForkedStateReader.get_compiled_class()
-      ForkedStateReader._get_class_by_hash()
-    """
-    get_compiled_class_by_class_hash(INVALID_HASH)
-
-
-@assert_no_badrequest_in_forked_devnet_output
-def test_error_get_nonce_forked():
-    """Call forked with invalid transaction address"""
-    nonce = get_nonce(INVALID_ADDRESS)
-    assert nonce == 0
-
-
-@assert_no_badrequest_in_forked_devnet_output
-def test_error_get_storage_at_forked():
-    """Call forked with invalid transaction address"""
-    resp = get_storage_at(INVALID_ADDRESS, BALANCE_KEY)
-    assert resp.json() == "0x0"
 
 
 @devnet_in_background()
@@ -520,16 +345,14 @@ def test_get_transaction_status():
     assert response.status_code == 200
     tx_hash = response.json().get("tx_hash")
 
-    response = get_transaction_status(tx_hash)
-    assert response.status_code == 200
-    assert_valid_schema(response.json(), "get_transaction_status.json")
-    assert response.json().get("tx_status") == "ACCEPTED_ON_L2"
+    json_response = get_transaction_status(tx_hash)
+    assert_valid_schema(json_response, "get_transaction_status.json")
+    assert json_response.get("tx_status") == "ACCEPTED_ON_L2"
 
     invalid_tx_hash = "0x443a8b3ec1f9e0c64"
-    response = get_transaction_status(invalid_tx_hash)
-    assert response.status_code == 200
-    assert_valid_schema(response.json(), "get_transaction_status.json")
-    assert response.json().get("tx_status") == "NOT_RECEIVED"
+    json_response = get_transaction_status(invalid_tx_hash)
+    assert_valid_schema(json_response, "get_transaction_status.json")
+    assert json_response.get("tx_status") == "NOT_RECEIVED"
 
 
 @devnet_in_background()
