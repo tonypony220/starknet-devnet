@@ -106,7 +106,7 @@ class ForkedStateReader(StateReader):
                         block_number=self.__block_number,
                     )
                 )
-            compiled_class = CompiledClassBase.load(compiled_class_dict)
+            compiled_class = _load_compiled_class(compiled_class_dict)
         except BadRequest as bad_request:
             if is_originally_starknet_exception(bad_request):
                 original_error = _extract_original_stark_exception(bad_request)

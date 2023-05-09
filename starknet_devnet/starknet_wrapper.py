@@ -652,7 +652,6 @@ class StarknetWrapper:
         Return compiled class given the class hash (sierra hash).
         Should report an undeclared class if given the hash of a deprecated class
         """
-
         state = self.get_state().state
 
         try:
