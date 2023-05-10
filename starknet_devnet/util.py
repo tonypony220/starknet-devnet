@@ -1,7 +1,7 @@
 """
 Utility functions used across the project.
 """
-
+import logging
 import os
 import sys
 from dataclasses import dataclass
@@ -243,3 +243,23 @@ def get_fee_estimation_info(tx_fee: int, gas_price: int):
 def warn(msg: str, file=sys.stderr):
     """Log a warning"""
     print(f"\033[93m{msg}\033[0m", file=file)
+
+
+class LogSuppressor:
+    """Context manager to suppress logger"""
+
+    def __init__(self, logger_name):
+        # check logger exists
+        assert logger_name in logging.Logger.manager.loggerDict
+        self.logger = logging.getLogger(logger_name)
+
+    def __enter__(self):
+        self.logger.disabled = True
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.logger.disabled = False
+
+
+# FeederGatewayClient is implemented in such a way that it logs and raises;
+# this suppresses the logging
+suppress_feeder_gateway_client_logger = LogSuppressor("services.external_api.client")

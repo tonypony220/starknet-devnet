@@ -16,7 +16,11 @@ from starkware.starknet.services.api.feeder_gateway.response_objects import (
 )
 
 from starknet_devnet.forked_state import is_originally_starknet_exception
-from starknet_devnet.util import StarknetDevnetException, UndeclaredClassDevnetException
+from starknet_devnet.util import (
+    StarknetDevnetException,
+    UndeclaredClassDevnetException,
+    suppress_feeder_gateway_client_logger,
+)
 
 
 class Origin:
@@ -175,9 +179,10 @@ class ForkedOrigin(Origin):
 
     async def get_transaction_trace(self, transaction_hash: str):
         try:
-            return await self.__feeder_gateway_client.get_transaction_trace(
-                transaction_hash
-            )
+            with suppress_feeder_gateway_client_logger:
+                return await self.__feeder_gateway_client.get_transaction_trace(
+                    transaction_hash
+                )
         except BadRequest as bad_request:
             if is_originally_starknet_exception(bad_request):
                 raise StarknetDevnetException(
@@ -192,7 +197,10 @@ class ForkedOrigin(Origin):
             message=f"Block hash {block_hash} does not exist.",
         )
         try:
-            block = await self.__feeder_gateway_client.get_block(block_hash=block_hash)
+            with suppress_feeder_gateway_client_logger:
+                block = await self.__feeder_gateway_client.get_block(
+                    block_hash=block_hash
+                )
             if block.block_number > self.get_number_of_blocks():
                 raise custom_exception
             return block
@@ -211,10 +219,11 @@ class ForkedOrigin(Origin):
         self, block_hash: str = None, block_number: int = None
     ) -> dict:
         try:
-            return await self.__feeder_gateway_client.get_state_update(
-                block_hash=block_hash,
-                block_number=block_number,
-            )
+            with suppress_feeder_gateway_client_logger:
+                return await self.__feeder_gateway_client.get_state_update(
+                    block_hash=block_hash,
+                    block_number=block_number,
+                )
         except BadRequest as bad_request:
             if is_originally_starknet_exception(bad_request):
                 raise StarknetDevnetException(
@@ -227,9 +236,10 @@ class ForkedOrigin(Origin):
         self, class_hash: int, block_number: int = None
     ) -> dict:
         try:
-            return await self.__feeder_gateway_client.get_class_by_hash(
-                hex(class_hash), block_number=block_number
-            )
+            with suppress_feeder_gateway_client_logger:
+                return await self.__feeder_gateway_client.get_class_by_hash(
+                    hex(class_hash), block_number=block_number
+                )
         except BadRequest as bad_request:
             if is_originally_starknet_exception(bad_request):
                 raise UndeclaredClassDevnetException(class_hash) from bad_request

@@ -1,6 +1,5 @@
 """Forked state"""
 
-import contextlib
 import json
 
 from services.external_api.client import BadRequest
@@ -26,7 +25,7 @@ from starkware.starkware_utils.error_handling import StarkException
 
 from .block_info_generator import now
 from .general_config import build_devnet_general_config
-from .util import StarknetDevnetException
+from .util import StarknetDevnetException, suppress_feeder_gateway_client_logger
 
 
 def is_originally_starknet_exception(exc: BadRequest):
@@ -68,7 +67,7 @@ class ForkedStateReader(StateReader):
 
     async def _get_class_by_hash(self, class_hash: int) -> CompiledClassBase:
         try:
-            with contextlib.redirect_stderr(None):
+            with suppress_feeder_gateway_client_logger:
                 class_dict = await self.__feeder_gateway_client.get_class_by_hash(
                     class_hash=hex(class_hash), block_number=self.__block_number
                 )
@@ -81,7 +80,7 @@ class ForkedStateReader(StateReader):
 
     async def get_compiled_class(self, compiled_class_hash: int) -> CompiledClassBase:
         try:
-            with contextlib.redirect_stderr(None):
+            with suppress_feeder_gateway_client_logger:
                 compiled_class_dict = (
                     await self.__feeder_gateway_client.get_compiled_class_by_class_hash(
                         hex(compiled_class_hash),
@@ -99,7 +98,7 @@ class ForkedStateReader(StateReader):
 
     async def get_compiled_class_hash(self, class_hash: int) -> int:
         try:
-            with contextlib.redirect_stderr(None):
+            with suppress_feeder_gateway_client_logger:
                 compiled_class_dict = (
                     await self.__feeder_gateway_client.get_compiled_class_by_class_hash(
                         hex(class_hash),
@@ -125,7 +124,7 @@ class ForkedStateReader(StateReader):
 
     async def get_class_hash_at(self, contract_address: int) -> int:
         try:
-            with contextlib.redirect_stderr(None):
+            with suppress_feeder_gateway_client_logger:
                 class_hash_hex = await self.__feeder_gateway_client.get_class_hash_at(
                     contract_address=contract_address,
                     block_number=self.__block_number,
