@@ -33,7 +33,8 @@ class DefaultContractClassCompiler(ContractClassCompiler):
     """Uses the default internal cairo-lang compiler"""
 
     def compile_contract_class(self, contract_class: ContractClass) -> CompiledClass:
-        custom_err_msg = "\nFailed compilation from Sierra to Casm! Read more about starting Devnet with --cairo-compiler-manifest"
+        custom_err_msg = """
+Failed compilation from Sierra to Casm! Read more about starting Devnet with --cairo-compiler-manifest or --sierra-compiler-path"""
 
         try:
             return compile_contract_class(
@@ -42,7 +43,8 @@ class DefaultContractClassCompiler(ContractClassCompiler):
             )
         except PermissionError as permission_error:
             raise StarknetDevnetException(
-                code=StarknetErrorCode.COMPILATION_FAILED, message=custom_err_msg
+                code=StarknetErrorCode.COMPILATION_FAILED,
+                message=permission_error + custom_err_msg,
             ) from permission_error
         except StarkException as stark_exception:
             raise StarknetDevnetException(
