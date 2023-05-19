@@ -13,7 +13,7 @@ This file contains monkeypatches used across the project. Advice for monkeypatch
 import os
 import sys
 
-__version__ = "0.5.1"
+__version__ = "0.5.2"
 
 
 def _patch_pedersen_hash():
