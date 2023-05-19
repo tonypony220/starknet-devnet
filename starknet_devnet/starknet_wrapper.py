@@ -74,6 +74,7 @@ from .blueprints.rpc.structures.types import BlockId, Felt
 from .chargeable_account import ChargeableAccount
 from .compiler import select_compiler
 from .constants import (
+    DUMMY_PENDING_BLOCK_HASH,
     DUMMY_STATE_ROOT,
     LEGACY_TX_VERSION,
     STARKNET_CLI_ACCOUNT_CLASS_HASH,
@@ -325,7 +326,7 @@ class StarknetWrapper:
         )
 
         return BlockStateUpdate(
-            block_hash=None,
+            block_hash=DUMMY_PENDING_BLOCK_HASH,
             new_root=DUMMY_STATE_ROOT,
             old_root=DUMMY_STATE_ROOT,
             state_diff=state_diff,
@@ -396,7 +397,7 @@ class StarknetWrapper:
                 compiled_class = external_tx.contract_class
                 tx_handler.explicitly_declared_old.append(class_hash)
 
-            state.state.contract_classes[compiled_class_hash] = compiled_class
+            state.state.compiled_classes[compiled_class_hash] = compiled_class
             self._contract_classes[class_hash] = external_tx.contract_class
 
         return class_hash, tx_handler.internal_tx.hash_value
@@ -928,7 +929,7 @@ class StarknetWrapper:
     async def __predeclare_starknet_cli_account(self):
         """Predeclares the account class used by Starknet CLI"""
         state = self.get_state().state
-        state.contract_classes[STARKNET_CLI_ACCOUNT_CLASS_HASH] = oz_account_class
+        state.compiled_classes[STARKNET_CLI_ACCOUNT_CLASS_HASH] = oz_account_class
 
     async def __deploy_chargeable_account(self):
         if await self.is_deployed(ChargeableAccount.ADDRESS):
