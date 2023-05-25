@@ -9,7 +9,7 @@ Installing the package adds the `starknet-devnet` command.
 ```text
 usage: starknet-devnet [-h] [-v] [--host HOST] [--port PORT] [--load-path LOAD_PATH] [--dump-path DUMP_PATH] [--dump-on DUMP_ON]
                        [--lite-mode] [--blocks-on-demand] [--accounts ACCOUNTS] [--initial-balance INITIAL_BALANCE] [--seed SEED]
-                       [--hide-predeployed-accounts] [--start-time START_TIME] [--gas-price GAS_PRICE] [--allow-max-fee-zero]
+                       [--hide-predeployed-contracts] [--start-time START_TIME] [--gas-price GAS_PRICE] [--allow-max-fee-zero]
                        [--timeout TIMEOUT] [--account-class ACCOUNT_CLASS] [--fork-network FORK_NETWORK] [--fork-block FORK_BLOCK]
                        [--fork-retries FORK_RETRIES] [--chain-id CHAIN_ID] [--disable-rpc-request-validation]
                        [--disable-rpc-response-validation]
@@ -32,8 +32,8 @@ optional arguments:
   --initial-balance INITIAL_BALANCE, -e INITIAL_BALANCE
                         Specify the initial balance of accounts to be predeployed; defaults to 1e+21
   --seed SEED           Specify the seed for randomness of accounts to be predeployed
-  --hide-predeployed-accounts
-                        Prevents from printing the predeployed accounts details
+  --hide-predeployed-contracts
+                        Prevents from printing the predeployed contracts details
   --start-time START_TIME
                         Specify the start time of the genesis block in Unix time seconds
   --gas-price GAS_PRICE, -g GAS_PRICE

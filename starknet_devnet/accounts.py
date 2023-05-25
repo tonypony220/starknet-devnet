@@ -30,11 +30,6 @@ class Accounts:
         self.list = []
 
         self.__generate()
-        if (
-            starknet_wrapper.config.accounts
-            and not starknet_wrapper.config.hide_predeployed_accounts
-        ):
-            self.__print()
 
     def __getitem__(self, index) -> Account:
         return self.list[index]
@@ -43,6 +38,8 @@ class Accounts:
         """deploy listed accounts"""
         for account in self.list:
             await account.deploy()
+        if not self.starknet_wrapper.config.hide_predeployed_contracts:
+            self.__print()
 
     def add(self, account):
         """append account to list"""
