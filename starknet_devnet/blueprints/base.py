@@ -1,8 +1,11 @@
 """
 Base routes
 """
+import pprint
+
 from flask import Blueprint, Response, jsonify, request
-from starkware.starkware_utils.error_handling import StarkErrorCode
+from starkware.starkware_utils.error_handling import StarkErrorCode, \
+    StarkException
 
 from starknet_devnet.fee_token import FeeToken
 from starknet_devnet.state import state
@@ -10,6 +13,7 @@ from starknet_devnet.util import (
     StarknetDevnetException,
     check_valid_dump_path,
     parse_hex_string,
+    LogContext
 )
 
 base = Blueprint("base", __name__)
@@ -129,40 +133,44 @@ def load():
 async def increase_time():
     """Increases the block timestamp offset and generates a new block"""
     request_dict = request.json or {}
-    time_s = extract_positive(request_dict, "time")
+    with LogContext().set_context_name("Increase time") as context:
+        context.update(request_dict)
+        time_s = extract_positive(request_dict, "time")
 
-    # Increase block time only when there are no pending transactions
-    if not state.starknet_wrapper.pending_txs:
-        state.starknet_wrapper.increase_block_time(time_s)
-        block = await state.starknet_wrapper.generate_latest_block()
-        return jsonify(
-            {"timestamp_increased_by": time_s, "block_hash": hex(block.block_hash)}
+        # Increase block time only when there are no pending transactions
+        if not state.starknet_wrapper.pending_txs:
+            state.starknet_wrapper.increase_block_time(time_s)
+            block = await state.starknet_wrapper.generate_latest_block()
+            return jsonify(
+                {"timestamp_increased_by": time_s, "block_hash": hex(block.block_hash)}
+            )
+
+        raise StarknetDevnetException(
+            code=StarkErrorCode.INVALID_REQUEST,
+            status_code=400,
+            message="Block time can be increased only if there are no pending transactions.",
         )
-
-    raise StarknetDevnetException(
-        code=StarkErrorCode.INVALID_REQUEST,
-        status_code=400,
-        message="Block time can be increased only if there are no pending transactions.",
-    )
 
 
 @base.route("/set_time", methods=["POST"])
 async def set_time():
     """Sets the block timestamp offset and generates a new block"""
     request_dict = request.json or {}
-    time_s = extract_positive(request_dict, "time")
+    with LogContext().set_context_name("Set time") as context:
+        context.update(request_dict)
+        time_s = extract_positive(request_dict, "time")
 
-    # Set block time only when there are no pending transactions
-    if not state.starknet_wrapper.pending_txs:
-        state.starknet_wrapper.set_block_time(time_s)
-        block = await state.starknet_wrapper.generate_latest_block()
-        return jsonify({"block_timestamp": time_s, "block_hash": hex(block.block_hash)})
+        # Set block time only when there are no pending transactions
+        if not state.starknet_wrapper.pending_txs:
+            state.starknet_wrapper.set_block_time(time_s)
+            block = await state.starknet_wrapper.generate_latest_block()
+            return jsonify({"block_timestamp": time_s, "block_hash": hex(block.block_hash)})
 
-    raise StarknetDevnetException(
-        code=StarkErrorCode.MALFORMED_REQUEST,
-        status_code=400,
-        message="Block time can be set only if there are no pending transactions.",
-    )
+        raise StarknetDevnetException(
+            code=StarkErrorCode.MALFORMED_REQUEST,
+            status_code=400,
+            message="Block time can be set only if there are no pending transactions.",
+        )
 
 
 @base.route("/account_balance", methods=["GET"])
@@ -193,16 +201,20 @@ async def get_fee_token():
 async def mint():
     """Mint token and transfer to the provided address"""
     request_json = request.json or {}
+    with LogContext() as context:
+        context.set_context_name("Mint")
+        context.update(request_json)
+        address = hex_converter(request_json, "address")
+        amount = extract_positive(request_json, "amount")
+        is_lite = request_json.get("lite", False)
 
-    address = hex_converter(request_json, "address")
-    amount = extract_positive(request_json, "amount")
-    is_lite = request_json.get("lite", False)
+        tx_hash = await state.starknet_wrapper.fee_token.mint(
+            to_address=address, amount=amount, lite=is_lite, context=context
+        )
+        # logger.info(f"Minting transaction completed {pprint.pformat(context)}")
+        new_balance = await state.starknet_wrapper.fee_token.get_balance(address)
+        # logger.error(f"Minting transaction failed: {pprint.pformat(error_message)}")
 
-    tx_hash = await state.starknet_wrapper.fee_token.mint(
-        to_address=address, amount=amount, lite=is_lite
-    )
-
-    new_balance = await state.starknet_wrapper.fee_token.get_balance(address)
     return jsonify({"new_balance": new_balance, "unit": "wei", "tx_hash": tx_hash})
 
 

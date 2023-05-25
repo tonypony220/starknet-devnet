@@ -58,3 +58,7 @@ class Account(PredeployedContractWrapper):
         )
 
         await set_balance(starknet.state, self.address, self.initial_balance)
+
+    def _print(self):
+        """Predeployed Accounts logged in Accounts Wrapper"""
+        pass

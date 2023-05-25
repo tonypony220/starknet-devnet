@@ -11,7 +11,7 @@ PORT2=5050
 DEVNET2_URL="http://$HOST:$PORT2"
 
 
-poetry run starknet-devnet --host "$HOST" --port "$PORT1" --seed 42 --accounts 1 --hide-predeployed-accounts &
+poetry run starknet-devnet --host "$HOST" --port "$PORT1" --seed 42 --accounts 1 --hide-predeployed-contracts &
 DEVNET1_PID=$!
 curl --retry 20 --retry-delay 1 --retry-connrefused -s -o /dev/null "$DEVNET1_URL/is_alive"
 echo "Started up devnet1; pid: $DEVNET1_PID"

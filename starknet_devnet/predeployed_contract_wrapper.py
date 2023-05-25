@@ -47,8 +47,15 @@ class PredeployedContractWrapper(ABC):
 
         await self._mimic_constructor()
 
+
         self.contract = StarknetContract(
             state=starknet.state,
             abi=self.contract_class.abi,
             contract_address=self.address,
         )
+
+        if not self.starknet_wrapper.config.hide_predeployed_contracts:
+            self._print()
+
+    def _print(self):
+        raise NotImplementedError()

@@ -106,12 +106,12 @@ from .util import (
     get_storage_diffs,
     group_classes_by_version,
     warn,
+    LogContext
 )
 
 enable_pickling()
 
 DEFAULT_BLOCK_ID = LATEST_BLOCK_ID
-
 
 # pylint: disable=too-many-instance-attributes
 # pylint: disable=too-many-public-methods
@@ -345,7 +345,7 @@ class StarknetWrapper:
         self.transactions.store(transaction.transaction_hash, transaction)
 
     async def declare(
-        self, external_tx: Union[Declare, DeprecatedDeclare]
+        self, external_tx: Union[Declare, DeprecatedDeclare], context: LogContext = None,
     ) -> Tuple[int, int]:
         """
         Declares the class specified with `declare_transaction`
@@ -353,7 +353,7 @@ class StarknetWrapper:
         """
 
         state = self.get_state()
-        async with self.__get_transaction_handler(external_tx) as tx_handler:
+        async with self.__get_transaction_handler(external_tx, context) as tx_handler:
             tx_handler.internal_tx = InternalDeclare.from_external(
                 external_tx, state.general_config
             )
@@ -415,7 +415,7 @@ class StarknetWrapper:
         )
         return block_info
 
-    def __get_transaction_handler(self, external_tx=None):
+    def __get_transaction_handler(self, external_tx=None, context=None):
         class TransactionHandler:
             """Class for with-blocks in transactions"""
 
@@ -510,11 +510,24 @@ class StarknetWrapper:
                     if not self.starknet_wrapper.config.blocks_on_demand:
                         await self.starknet_wrapper.generate_latest_block()
 
+                if context is not None:
+                    context.update(transaction.get_receipt().dump())
+                # log_transaction_on_exit(transaction, self.internal_tx)
+
+                # tras = {
+                #     "int": self.internal_tx.dumps(),
+                #         "status": status,
+                #         "ex": self.execution_info.dumps(),
+                #         }
+                # logger.info(
+                #     f"EXEC info: {pprint.pformat(self.execution_info.dump())}")
+                # logger.info(
+                #     f"INTERNAL info: {pprint.pformat(self.internal_tx.dump())}")
                 return True  # indicates the caught exception was handled successfully
 
         return TransactionHandler(self)
 
-    async def deploy_account(self, external_tx: DeployAccount):
+    async def deploy_account(self, external_tx: DeployAccount, context: LogContext = None):
         """Deploys account and returns (address, tx_hash)"""
 
         state = self.get_state()
@@ -526,7 +539,7 @@ class StarknetWrapper:
         )
 
         async with self.__get_transaction_handler(
-            external_tx=external_tx
+            external_tx=external_tx, context=context
         ) as tx_handler:
             tx_handler.internal_tx = InternalDeployAccount.from_external(
                 external_tx, state.general_config
@@ -542,11 +555,11 @@ class StarknetWrapper:
             tx_handler.internal_tx.hash_value,
         )
 
-    async def invoke(self, external_tx: InvokeFunction):
+    async def invoke(self, external_tx: InvokeFunction, context: LogContext = None):
         """Perform invoke according to specifications in `transaction`."""
         state = self.get_state()
         async with self.__get_transaction_handler(
-            external_tx=external_tx
+            external_tx=external_tx, context=context
         ) as tx_handler:
             tx_handler.internal_tx = InternalInvokeFunction.from_external(
                 external_tx, state.general_config
@@ -929,7 +942,9 @@ class StarknetWrapper:
     async def __predeclare_starknet_cli_account(self):
         """Predeclares the account class used by Starknet CLI"""
         state = self.get_state().state
-        state.compiled_classes[STARKNET_CLI_ACCOUNT_CLASS_HASH] = oz_account_class
+        state.contract_classes[STARKNET_CLI_ACCOUNT_CLASS_HASH] = oz_account_class
+        print("Predeclared starknet cli account: ", flush=True)
+        print(f"Class hash: {STARKNET_CLI_ACCOUNT_CLASS_HASH}\n", flush=True)
 
     async def __deploy_chargeable_account(self):
         if await self.is_deployed(ChargeableAccount.ADDRESS):

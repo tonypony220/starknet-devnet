@@ -6,6 +6,7 @@ import os
 import sys
 from dataclasses import dataclass
 from typing import Dict, List, Set, Tuple
+import pprint
 
 from starkware.starknet.business_logic.state.state import CachedState
 from starkware.starknet.definitions.error_codes import StarknetErrorCode
@@ -263,3 +264,99 @@ class LogSuppressor:
 # FeederGatewayClient is implemented in such a way that it logs and raises;
 # this suppresses the logging
 suppress_feeder_gateway_client_logger = LogSuppressor("services.external_api.client")
+
+logger = logging.getLogger('gunicorn.error')
+
+
+class LogContext(dict):
+    """Context manager for logging transactions"""
+    # accumulating info while executing transaction
+
+    def get_context_name(self) -> str:
+        return getattr(self, 'name', None) or 'Transaction'
+
+    def set_context_name(self, name):
+        self.name = name
+        return self
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if self.get('actual_fee', None):
+            self['actual_fee'] = int(self['actual_fee'], 16)
+        if exc_type:
+            if isinstance(exc_val, StarkException):
+                error_message = {
+                    "message": exc_val.message,
+                    "code": str(exc_val.code),
+                    "context": self
+                }
+            else:
+                error_message = {
+                    "message": str(exc_val),
+                    "context": self
+                }
+            logger.error(
+                f"{self.get_context_name()} failed: {pprint.pformat(error_message)}")
+            return
+        logger.info(f"{self.get_context_name()} completed: {pprint.pformat(self)}")
+
+
+# def log_transaction_on_exit(transaction, internal_tx):
+#     info =  transaction.get_receipt().dump()
+#     info['actual_fee'] = int(info['actual_fee'], 16)
+#     for field in ['class_hash', 'sender_address']:
+#         attr = getattr(internal_tx, field, None)
+#         if attr:
+#             info[field] = hex(attr)
+#     # getattr(internal_tx, )
+#     # res = {
+#     #           'class_hash': hex(self.internal_tx.class_hash),
+#     #           'sender_address': hex(self.internal_tx.sender_address),
+#     #       }
+#     logger.info(f"Executed Transaction:\n{pprint.pformat(info, compact=True)}")
+
+
+# def log(msg: str = '', json=None):
+#     if json is None:
+#         logger.info(f"{msg}")
+#         return
+#     logger.info(f"{msg}: {pprint.pformat(json)}")
+
+
+def extract_transaction_info_to_log(external_tx) -> dict:
+    tx = external_tx.dump()
+    log_data = {
+        "type": external_tx.tx_type,
+        "max_fee": int(tx.get("max_fee"), 16),
+        "nonce": tx.get("nonce"),
+        "version": tx.get("version"),
+        "sender_address": tx.get("sender_address"),
+        "class_hash": tx.get("class_hash"),
+    }
+    # log_data = {}
+    # def set_val(attr, cust=lambda x: x):
+    #     val = getattr(external_tx, attr, None)
+    #     if val:
+    #         if cust == int:
+    #             log_data[attr] = cust(val, 16)
+    #         else:
+    #             log_data[attr] = cust(val)
+    # set_val("tx_type")
+    # set_val("max_fee", int)
+    # set_val("nonce", int)
+    # set_val("version", int)
+    # set_val("sender_address", hex)
+    # set_val("class_hash", hex)
+    return log_data
+
+
+# def log_external_transaction(msg, external_tx, aux=None):
+#     # logger.info(f"EXTERNAL tx:\n {pprint.pformat(external_tx.dump())}")
+#     log = extract_transaction_info_to_log(external_tx)
+#     if aux is not None:
+#         log.update(aux)
+#     logger.info(f"{msg}:\n {pprint.pformat(log)}")
+
+
