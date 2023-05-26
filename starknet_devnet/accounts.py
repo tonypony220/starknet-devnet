@@ -38,7 +38,10 @@ class Accounts:
         """deploy listed accounts"""
         for account in self.list:
             await account.deploy()
-        if not self.starknet_wrapper.config.hide_predeployed_contracts:
+        if (
+                self.starknet_wrapper.config.accounts
+                and not self.starknet_wrapper.config.hide_predeployed_contracts
+        ):
             self.__print()
 
     def add(self, account):

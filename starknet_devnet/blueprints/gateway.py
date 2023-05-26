@@ -1,17 +1,22 @@
 """
 Gateway routes
 """
-import pprint
+
+import json
 
 from flask import Blueprint, jsonify, request
 from starkware.starknet.definitions.error_codes import StarknetErrorCode
 from starkware.starknet.definitions.transaction_type import TransactionType
-from starkware.starkware_utils.error_handling import StarkErrorCode, \
-    StarkException
+from starkware.starkware_utils.error_handling import StarkErrorCode
 
 from starknet_devnet.devnet_config import DumpOn
 from starknet_devnet.state import state
-from starknet_devnet.util import StarknetDevnetException, fixed_length_hex, extract_transaction_info_to_log, LogContext
+from starknet_devnet.util import (
+    LogContext,
+    StarknetDevnetException,
+    extract_transaction_info_to_log,
+    fixed_length_hex,
+)
 
 from .shared import validate_transaction
 
@@ -22,8 +27,8 @@ gateway = Blueprint("gateway", __name__, url_prefix="/gateway")
 async def add_transaction():
     """Endpoint for accepting (state-changing) transactions."""
     with LogContext() as context:
+        context.update(extract_transaction_info_to_log(json.loads(request.get_data())))
         transaction = validate_transaction(request.get_data())
-        context.update(extract_transaction_info_to_log(transaction))
         tx_type = transaction.tx_type
 
         response_dict = {
@@ -31,9 +36,10 @@ async def add_transaction():
         }
 
         if tx_type == TransactionType.DECLARE:
-            contract_class_hash, transaction_hash = await state.starknet_wrapper.declare(
-                transaction, context
-            )
+            (
+                contract_class_hash,
+                transaction_hash,
+            ) = await state.starknet_wrapper.declare(transaction, context)
             response_dict["class_hash"] = hex(contract_class_hash)
 
         elif tx_type == TransactionType.DEPLOY_ACCOUNT:

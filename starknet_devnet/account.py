@@ -61,4 +61,3 @@ class Account(PredeployedContractWrapper):
 
     def _print(self):
         """Predeployed Accounts logged in Accounts Wrapper"""
-        pass

@@ -47,7 +47,6 @@ class PredeployedContractWrapper(ABC):
 
         await self._mimic_constructor()
 
-
         self.contract = StarknetContract(
             state=starknet.state,
             abi=self.contract_class.abi,

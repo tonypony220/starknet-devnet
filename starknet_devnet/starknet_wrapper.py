@@ -94,6 +94,7 @@ from .transactions import (
 )
 from .udc import UDC
 from .util import (
+    LogContext,
     StarknetDevnetException,
     UndeclaredClassDevnetException,
     assert_not_declared,
@@ -106,7 +107,6 @@ from .util import (
     get_storage_diffs,
     group_classes_by_version,
     warn,
-    LogContext
 )
 
 enable_pickling()
@@ -346,7 +346,9 @@ class StarknetWrapper:
         self.transactions.store(transaction.transaction_hash, transaction)
 
     async def declare(
-        self, external_tx: Union[Declare, DeprecatedDeclare], context: LogContext = None,
+        self,
+        external_tx: Union[Declare, DeprecatedDeclare],
+        context: LogContext = None,
     ) -> Tuple[int, int]:
         """
         Declares the class specified with `declare_transaction`
@@ -416,7 +418,7 @@ class StarknetWrapper:
         )
         return block_info
 
-    def __get_transaction_handler(self, external_tx=None, context=None):
+    def __get_transaction_handler(self, external_tx=None, context: LogContext = None):
         class TransactionHandler:
             """Class for with-blocks in transactions"""
 
@@ -513,22 +515,13 @@ class StarknetWrapper:
 
                 if context is not None:
                     context.update(transaction.get_receipt().dump())
-                # log_transaction_on_exit(transaction, self.internal_tx)
-
-                # tras = {
-                #     "int": self.internal_tx.dumps(),
-                #         "status": status,
-                #         "ex": self.execution_info.dumps(),
-                #         }
-                # logger.info(
-                #     f"EXEC info: {pprint.pformat(self.execution_info.dump())}")
-                # logger.info(
-                #     f"INTERNAL info: {pprint.pformat(self.internal_tx.dump())}")
                 return True  # indicates the caught exception was handled successfully
 
         return TransactionHandler(self)
 
-    async def deploy_account(self, external_tx: DeployAccount, context: LogContext = None):
+    async def deploy_account(
+        self, external_tx: DeployAccount, context: LogContext = None
+    ):
         """Deploys account and returns (address, tx_hash)"""
 
         state = self.get_state()
@@ -952,9 +945,10 @@ class StarknetWrapper:
     async def __predeclare_starknet_cli_account(self):
         """Predeclares the account class used by Starknet CLI"""
         state = self.get_state().state
-        state.contract_classes[STARKNET_CLI_ACCOUNT_CLASS_HASH] = oz_account_class
-        print("Predeclared starknet cli account: ", flush=True)
-        print(f"Class hash: {STARKNET_CLI_ACCOUNT_CLASS_HASH}\n", flush=True)
+        state.compiled_classes[STARKNET_CLI_ACCOUNT_CLASS_HASH] = oz_account_class
+        if not self.config.hide_predeployed_contracts:
+            print("Predeclared starknet cli account: ", flush=True)
+            print(f"Class hash: {STARKNET_CLI_ACCOUNT_CLASS_HASH}\n", flush=True)
 
     async def __deploy_chargeable_account(self):
         if await self.is_deployed(ChargeableAccount.ADDRESS):

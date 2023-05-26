@@ -2,6 +2,7 @@
 Fee token and its predefined constants.
 """
 import sys
+
 from starkware.solidity.utils import load_nearby_contract
 from starkware.starknet.business_logic.transaction.objects import InternalInvokeFunction
 from starkware.starknet.compiler.compile import get_selector_from_name
@@ -16,8 +17,12 @@ from starknet_devnet.account_util import get_execute_args
 from starknet_devnet.chargeable_account import ChargeableAccount
 from starknet_devnet.constants import SUPPORTED_TX_VERSION
 from starknet_devnet.predeployed_contract_wrapper import PredeployedContractWrapper
-from starknet_devnet.util import Uint256, str_to_felt, \
-    extract_transaction_info_to_log, LogContext
+from starknet_devnet.util import (
+    LogContext,
+    Uint256,
+    extract_transaction_info_to_log,
+    str_to_felt,
+)
 
 
 class FeeToken(PredeployedContractWrapper):
@@ -132,18 +137,20 @@ class FeeToken(PredeployedContractWrapper):
 
         tx_hash = None
         transaction = await self.get_mint_transaction(to_address, amount_uint256)
-        context.update(extract_transaction_info_to_log(transaction))
+        context.update(extract_transaction_info_to_log(transaction.dump()))
         starknet: Starknet = self.starknet_wrapper.starknet
         if lite:
             internal_tx = InternalInvokeFunction.from_external(
                 transaction, starknet.state.general_config
             )
-            exec = await starknet.state.execute_tx(internal_tx)
-            context.update({
-                "transaction_hash": hex(internal_tx.hash_value),
-                "actual_fee": exec.actual_fee,
-                "events": exec.get_sorted_events(),
-            })
+            execution_info = await starknet.state.execute_tx(internal_tx)
+            context.update(
+                {
+                    "transaction_hash": hex(internal_tx.hash_value),
+                    "actual_fee": execution_info.actual_fee,
+                    "events": execution_info.get_sorted_events(),
+                }
+            )
         else:
             _, tx_hash_int = await self.starknet_wrapper.invoke(transaction, context)
             tx_hash = hex(tx_hash_int)
@@ -152,8 +159,9 @@ class FeeToken(PredeployedContractWrapper):
 
     def _print(self):
         """stdout FeeToken"""
-        print(f"Predeployed FeeToken")
+        print("")
+        print("Predeployed FeeToken")
         print(f"Address: {hex(self.address)}")
-        print(f"Class Hash: {hex(self.class_hash)}\n")
+        print(f"Class Hash: {hex(self.class_hash)}")
         print(f"Symbol: {self.SYMBOL}\n")
         sys.stdout.flush()

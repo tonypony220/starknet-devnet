@@ -2,7 +2,9 @@
 Account that is charged with a fee when nobody else can be charged.
 """
 import sys
+
 from starknet_devnet.account import Account
+
 from .util import warn
 
 
@@ -25,9 +27,10 @@ class ChargeableAccount(Account):
             account_class_wrapper=starknet_wrapper.config.account_class,
         )
 
-    def __print(self):
+    def _print(self):
         """stdout chargeable account"""
-        print(f"\nPredeployed chargeable account")
+        print("")
+        print("Predeployed chargeable account")
         print(f"Address: {hex(self.address)}")
         print(f"Public key: {hex(self.public_key)}")
         print(f"Private key: {hex(self.private_key)}")
