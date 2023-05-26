@@ -86,11 +86,7 @@ def get_account_balance(address: str, server_url=APP_URL) -> int:
 @devnet_in_background()
 def test_account_contract_deploy():
     """Test account contract deploy, public key and initial nonce value."""
-    mint(address="sdf", amount=int(1e18), lite=True)
-    mint(address=SALTY_ACCOUNT_ADDRESS, amount=int(1), lite=True)
-    # mint(address="0x025b4639c321f3538c69537502f00000000000000000000000000bfc3da97de2", amount=int(1e18), lite=True)
     mint(address=SALTY_ACCOUNT_ADDRESS, amount=int(1e18), lite=True)
-    # mint(address=SALTY_ACCOUNT_ADDRESS, amount=int(1e18), lite=False)
     account_deploy_info = deploy_account_contract(private_key=PRIVATE_KEY, salt=SALT)
     account_address = account_deploy_info["address"]
     assert_hex_equal(account_address, SALTY_ACCOUNT_ADDRESS)

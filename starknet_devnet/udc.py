@@ -1,6 +1,7 @@
 """UDC and its constants"""
 
 import sys
+
 from starkware.solidity.utils import load_nearby_contract
 from starkware.starknet.services.api.contract_class.contract_class import (
     CompiledClassBase,
@@ -48,7 +49,7 @@ class UDC(PredeployedContractWrapper):
 
     def _print(self):
         """stdout UDC"""
-        print(f"Predeployed UDC")
+        print("Predeployed UDC")
         print(f"Address: {hex(self.address)}")
         print(f"Class Hash: {hex(self.class_hash)}\n")
         sys.stdout.flush()

@@ -51,6 +51,7 @@ def run_devnet_in_background(*args, stderr=None, stdout=None, env=None):
         "poetry",
         "run",
         "starknet-devnet",
+        "--verbose",
         "--host",
         HOST,
         "--port",
@@ -660,7 +661,7 @@ def mint(address: str, amount: int, lite=False):
     response = requests.post(
         f"{APP_URL}/mint", json={"address": address, "amount": amount, "lite": lite}
     )
-    # assert response.status_code == 200
+    assert response.status_code == 200
     return response.json()
 
 

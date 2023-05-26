@@ -1,19 +1,17 @@
 """
 Base routes
 """
-import pprint
 
 from flask import Blueprint, Response, jsonify, request
-from starkware.starkware_utils.error_handling import StarkErrorCode, \
-    StarkException
+from starkware.starkware_utils.error_handling import StarkErrorCode
 
 from starknet_devnet.fee_token import FeeToken
 from starknet_devnet.state import state
 from starknet_devnet.util import (
+    LogContext,
     StarknetDevnetException,
     check_valid_dump_path,
     parse_hex_string,
-    LogContext
 )
 
 base = Blueprint("base", __name__)
@@ -164,7 +162,9 @@ async def set_time():
         if not state.starknet_wrapper.pending_txs:
             state.starknet_wrapper.set_block_time(time_s)
             block = await state.starknet_wrapper.generate_latest_block()
-            return jsonify({"block_timestamp": time_s, "block_hash": hex(block.block_hash)})
+            return jsonify(
+                {"block_timestamp": time_s, "block_hash": hex(block.block_hash)}
+            )
 
         raise StarknetDevnetException(
             code=StarkErrorCode.MALFORMED_REQUEST,
@@ -201,8 +201,7 @@ async def get_fee_token():
 async def mint():
     """Mint token and transfer to the provided address"""
     request_json = request.json or {}
-    with LogContext() as context:
-        context.set_context_name("Mint")
+    with LogContext().set_context_name("Mint transaction") as context:
         context.update(request_json)
         address = hex_converter(request_json, "address")
         amount = extract_positive(request_json, "amount")
@@ -211,9 +210,7 @@ async def mint():
         tx_hash = await state.starknet_wrapper.fee_token.mint(
             to_address=address, amount=amount, lite=is_lite, context=context
         )
-        # logger.info(f"Minting transaction completed {pprint.pformat(context)}")
         new_balance = await state.starknet_wrapper.fee_token.get_balance(address)
-        # logger.error(f"Minting transaction failed: {pprint.pformat(error_message)}")
 
     return jsonify({"new_balance": new_balance, "unit": "wei", "tx_hash": tx_hash})
 

@@ -7,7 +7,7 @@ sidebar_position: 1
 Installing the package adds the `starknet-devnet` command.
 
 ```text
-usage: starknet-devnet [-h] [-v] [--host HOST] [--port PORT] [--load-path LOAD_PATH] [--dump-path DUMP_PATH] [--dump-on DUMP_ON]
+usage: starknet-devnet [-h] [-v] [-V] [--host HOST] [--port PORT] [--load-path LOAD_PATH] [--dump-path DUMP_PATH] [--dump-on DUMP_ON]
                        [--lite-mode] [--blocks-on-demand] [--accounts ACCOUNTS] [--initial-balance INITIAL_BALANCE] [--seed SEED]
                        [--hide-predeployed-contracts] [--start-time START_TIME] [--gas-price GAS_PRICE] [--allow-max-fee-zero]
                        [--timeout TIMEOUT] [--account-class ACCOUNT_CLASS] [--fork-network FORK_NETWORK] [--fork-block FORK_BLOCK]
@@ -18,7 +18,8 @@ Run a local instance of Starknet Devnet
 
 optional arguments:
   -h, --help            show this help message and exit
-  -v, --version         Print the version
+  -V, --version         Print the version
+  -v, --verbose         Show more verbose logs
   --host HOST           Specify the address to listen at; defaults to 127.0.0.1 (use the address the program outputs on start)
   --port PORT, -p PORT  Specify the port to listen at; defaults to 5050
   --load-path LOAD_PATH
