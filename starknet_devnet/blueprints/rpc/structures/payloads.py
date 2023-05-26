@@ -7,6 +7,7 @@ from __future__ import annotations
 from typing import Callable, Dict, List, Optional, Union
 
 from marshmallow.exceptions import MarshmallowError
+from starkware.starknet.definitions.constants import QUERY_VERSION_BASE
 from starkware.starknet.definitions.general_config import StarknetGeneralConfig
 from starkware.starknet.public.abi import AbiEntryType
 from starkware.starknet.services.api.contract_class.contract_class import (
@@ -497,9 +498,16 @@ def make_declare(
     declare_transaction: RpcBroadcastedDeclareTxn,
 ) -> Union[Declare, DeprecatedDeclare]:
     """Convert RpcBroadcastedDeclareTxn to Declare or DeprecatedDeclare"""
-    if int(declare_transaction["version"], 0) == SUPPORTED_RPC_DECLARE_TX_VERSION:
+    version = int(declare_transaction["version"], 0)
+    if version in (
+        SUPPORTED_RPC_DECLARE_TX_VERSION,
+        SUPPORTED_RPC_DECLARE_TX_VERSION + QUERY_VERSION_BASE,
+    ):
         return make_declare_v2(declare_transaction)
-    if int(declare_transaction["version"], 0) == DEPRECATED_RPC_DECLARE_TX_VERSION:
+    if version in (
+        DEPRECATED_RPC_DECLARE_TX_VERSION,
+        DEPRECATED_RPC_DECLARE_TX_VERSION + QUERY_VERSION_BASE,
+    ):
         return make_declare_v1(declare_transaction)
 
     raise RpcError(
