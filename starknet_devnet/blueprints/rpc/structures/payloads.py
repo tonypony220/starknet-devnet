@@ -40,7 +40,7 @@ from starkware.starknet.services.api.gateway.transaction_utils import (
     decompress_program,
 )
 from starkware.starkware_utils.error_handling import StarkException
-from typing_extensions import Literal, TypedDict
+from typing_extensions import Literal, NotRequired, TypedDict
 
 from starknet_devnet.blueprints.rpc.structures.types import (
     Address,
@@ -585,7 +585,7 @@ class StructMember(TypedDict):
 
     name: str
     type: str
-    offset: int
+    offset: Optional[int]
 
 
 class FunctionAbiEntry(TypedDict):
@@ -595,6 +595,7 @@ class FunctionAbiEntry(TypedDict):
     name: str
     inputs: List[TypedParameter]
     outputs: List[TypedParameter]
+    stateMutability: NotRequired[Literal["view"]]
 
 
 class EventAbiEntry(TypedDict):
@@ -622,12 +623,17 @@ def function_abi_entry(abi_entry: AbiEntryType) -> FunctionAbiEntry:
     """
     Convert function gateway abi entry to rpc FunctionAbiEntry
     """
-    return FunctionAbiEntry(
+    rpc_function_abi_entry = FunctionAbiEntry(
         type=abi_entry["type"],
         name=abi_entry["name"],
         inputs=abi_entry["inputs"],
         outputs=abi_entry["outputs"],
     )
+
+    if "stateMutability" in abi_entry:
+        rpc_function_abi_entry["stateMutability"] = abi_entry["stateMutability"]
+
+    return rpc_function_abi_entry
 
 
 def struct_abi_entry(abi_entry: AbiEntryType) -> StructAbiEntry:
