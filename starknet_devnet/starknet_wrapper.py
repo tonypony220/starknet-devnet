@@ -176,6 +176,7 @@ class StarknetWrapper:
 
             await self.__preserve_current_state(starknet.state.state)
             await self.__create_genesis_block()
+            self.__latest_state = self.get_state().copy()
             self.__initialized = True
 
     async def __create_genesis_block(self):
@@ -657,8 +658,16 @@ class StarknetWrapper:
         """
         state = self.get_state().state
 
+        # first handle the case of artifact being locally present
+        if class_hash in self._contract_classes:
+            compiled_class_hash = await state.get_compiled_class_hash(class_hash)
+            return await state.get_compiled_class(compiled_class_hash)
+
         try:
-            compiled_class = await state.get_compiled_class_by_class_hash(class_hash)
+            # directly on state_reader to ensure overridden method is called if forking
+            compiled_class = await state.state_reader.get_compiled_class_by_class_hash(
+                class_hash
+            )
             if isinstance(compiled_class, CompiledClass):
                 return compiled_class
         except AssertionError:
@@ -766,19 +775,20 @@ class StarknetWrapper:
         state = self.get_state()
         # Generate transactions in PostmanWrapper
         parsed_l1_l2_messages, transactions_to_execute = await self.l1l2.flush(state)
+        tx_hashes = []
 
         # Execute transactions inside StarknetWrapper
-        tx_hashes = []
-        for transaction in transactions_to_execute:
-            tx_hashes.append(hex(transaction.hash_value))
-            async with self.__get_transaction_handler() as tx_handler:
-                tx_handler.internal_tx = transaction
-                tx_handler.execution_info = await state.execute_tx(
-                    tx_handler.internal_tx
-                )
-                tx_handler.internal_calls = (
-                    tx_handler.execution_info.call_info.internal_calls
-                )
+        if parsed_l1_l2_messages and transactions_to_execute:
+            for transaction in transactions_to_execute:
+                tx_hashes.append(hex(transaction.hash_value))
+                async with self.__get_transaction_handler() as tx_handler:
+                    tx_handler.internal_tx = transaction
+                    tx_handler.execution_info = await state.execute_tx(
+                        tx_handler.internal_tx
+                    )
+                    tx_handler.internal_calls = (
+                        tx_handler.execution_info.call_info.internal_calls
+                    )
 
         parsed_l1_l2_messages["generated_l2_transactions"] = tx_hashes
         return parsed_l1_l2_messages
