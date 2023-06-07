@@ -103,8 +103,11 @@ def main():
         pass
     finally:
         # Dump only if process is worker (not main)
-        if args.dump_on == DumpOn.EXIT and os.getpid() != main_pid:
-            state.dumper.dump()
+        if os.getpid() != main_pid:
+            if args.dump_on == DumpOn.EXIT:
+                state.dumper.dump()
+            else:
+                state.starknet_wrapper.dump_origin()
             sys.exit(0)
 
 

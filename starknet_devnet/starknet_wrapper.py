@@ -83,7 +83,7 @@ from .devnet_config import DevnetConfig
 from .fee_token import FeeToken
 from .forked_state import get_forked_starknet
 from .general_config import build_devnet_general_config
-from .origin import ForkedOrigin, NullOrigin
+from .origin import CachedForkedOrigin, NullOrigin
 from .postman_wrapper import DevnetL1L2
 from .transactions import (
     DevnetTransaction,
@@ -124,7 +124,7 @@ class StarknetWrapper:
 
     def __init__(self, config: DevnetConfig):
         self.origin = (
-            ForkedOrigin(config.fork_network, config.fork_block)
+            CachedForkedOrigin(config.fork_network, config.fork_block)
             if config.fork_network
             else NullOrigin()
         )
@@ -1021,3 +1021,7 @@ class StarknetWrapper:
         self.starknet.state = self.blocks.get_state(last_block.block_hash)
 
         return aborted_blocks
+
+    def dump_origin(self):
+        if isinstance(self.origin, CachedForkedOrigin):
+            self.origin.dump()
