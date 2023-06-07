@@ -946,7 +946,7 @@ class StarknetWrapper:
         """Predeclares the account class used by Starknet CLI"""
         state = self.get_state().state
         state.compiled_classes[STARKNET_CLI_ACCOUNT_CLASS_HASH] = oz_account_class
-        if not self.config.hide_predeployed_contracts:
+        if self.config.verbose or not self.config.hide_predeployed_contracts:
             print("Predeclared starknet cli account: ", flush=True)
             print(f"Class hash: {STARKNET_CLI_ACCOUNT_CLASS_HASH}\n", flush=True)
 

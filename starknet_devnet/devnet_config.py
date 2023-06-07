@@ -451,3 +451,4 @@ class DevnetConfig:
         self.validate_rpc_responses = not self.args.disable_rpc_response_validation
         self.cairo_compiler_manifest = self.args.cairo_compiler_manifest
         self.sierra_compiler_path = self.args.sierra_compiler_path
+        self.verbose = self.args.verbose

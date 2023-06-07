@@ -40,7 +40,9 @@ class Accounts:
             await account.deploy()
         if (
                 self.starknet_wrapper.config.accounts
-                and not self.starknet_wrapper.config.hide_predeployed_contracts
+                and (self.starknet_wrapper.config.verbose
+                     or
+                     not self.starknet_wrapper.config.hide_predeployed_contracts)
         ):
             self.__print()
 
@@ -71,12 +73,9 @@ class Accounts:
     def __print(self):
         """stdout accounts list"""
         for idx, account in enumerate(self):
-            print(f"Account #{idx}")
-            print(f"Address: {hex(account.address)}")
-            print(f"Public key: {hex(account.public_key)}")
-            print(f"Private key: {hex(account.private_key)}\n")
+            print(f"#{idx}")
+            account.print()
 
-        print(f"Initial balance of each account: {self.__initial_balance} WEI")
         print("Seed to replicate this account sequence:", self.__seed)
         warn(
             "WARNING: Use these accounts and their keys ONLY for local testing. "

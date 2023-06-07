@@ -47,8 +47,7 @@ class UDC(PredeployedContractWrapper):
     async def _mimic_constructor(self):
         pass
 
-    def _print(self):
-        """stdout UDC"""
+    def print(self):
         print("Predeployed UDC")
         print(f"Address: {hex(self.address)}")
         print(f"Class Hash: {hex(self.class_hash)}\n")

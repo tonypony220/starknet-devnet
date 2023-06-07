@@ -27,8 +27,7 @@ class ChargeableAccount(Account):
             account_class_wrapper=starknet_wrapper.config.account_class,
         )
 
-    def _print(self):
-        """stdout chargeable account"""
+    def print(self):
         print("")
         print("Predeployed chargeable account")
         print(f"Address: {hex(self.address)}")

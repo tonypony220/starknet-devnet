@@ -157,8 +157,7 @@ class FeeToken(PredeployedContractWrapper):
 
         return tx_hash
 
-    def _print(self):
-        """stdout FeeToken"""
+    def print(self):
         print("")
         print("Predeployed FeeToken")
         print(f"Address: {hex(self.address)}")
