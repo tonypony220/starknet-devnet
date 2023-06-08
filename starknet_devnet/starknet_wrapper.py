@@ -3,6 +3,7 @@
 This module introduces `StarknetWrapper`, a wrapper class of
 starkware.starknet.testing.starknet.Starknet.
 """
+import pprint
 from copy import deepcopy
 from types import TracebackType
 from typing import Dict, List, Optional, Set, Tuple, Type, Union
@@ -94,7 +95,6 @@ from .transactions import (
 )
 from .udc import UDC
 from .util import (
-    LogContext,
     StarknetDevnetException,
     UndeclaredClassDevnetException,
     assert_not_declared,
@@ -106,6 +106,7 @@ from .util import (
     get_replaced_classes,
     get_storage_diffs,
     group_classes_by_version,
+    logger,
     warn,
 )
 
@@ -346,9 +347,7 @@ class StarknetWrapper:
         self.transactions.store(transaction.transaction_hash, transaction)
 
     async def declare(
-        self,
-        external_tx: Union[Declare, DeprecatedDeclare],
-        context: LogContext = None,
+        self, external_tx: Union[Declare, DeprecatedDeclare]
     ) -> Tuple[int, int]:
         """
         Declares the class specified with `declare_transaction`
@@ -356,7 +355,7 @@ class StarknetWrapper:
         """
 
         state = self.get_state()
-        async with self.__get_transaction_handler(external_tx, context) as tx_handler:
+        async with self.__get_transaction_handler(external_tx) as tx_handler:
             tx_handler.internal_tx = InternalDeclare.from_external(
                 external_tx, state.general_config
             )
@@ -418,7 +417,7 @@ class StarknetWrapper:
         )
         return block_info
 
-    def __get_transaction_handler(self, external_tx=None, context: LogContext = None):
+    def __get_transaction_handler(self, external_tx=None):
         class TransactionHandler:
             """Class for with-blocks in transactions"""
 
@@ -513,15 +512,19 @@ class StarknetWrapper:
                     if not self.starknet_wrapper.config.blocks_on_demand:
                         await self.starknet_wrapper.generate_latest_block()
 
-                if context is not None:
-                    context.update(transaction.get_receipt().dump())
+                logger.info(
+                    "transaction execution info: %s",
+                    pprint.pformat(self.execution_info.dump()),
+                )
+                logger.info(
+                    "transaction receipt: %s",
+                    pprint.pformat(transaction.get_receipt().dump()),
+                )
                 return True  # indicates the caught exception was handled successfully
 
         return TransactionHandler(self)
 
-    async def deploy_account(
-        self, external_tx: DeployAccount, context: LogContext = None
-    ):
+    async def deploy_account(self, external_tx: DeployAccount):
         """Deploys account and returns (address, tx_hash)"""
 
         state = self.get_state()
@@ -533,7 +536,7 @@ class StarknetWrapper:
         )
 
         async with self.__get_transaction_handler(
-            external_tx=external_tx, context=context
+            external_tx=external_tx
         ) as tx_handler:
             tx_handler.internal_tx = InternalDeployAccount.from_external(
                 external_tx, state.general_config
@@ -549,11 +552,11 @@ class StarknetWrapper:
             tx_handler.internal_tx.hash_value,
         )
 
-    async def invoke(self, external_tx: InvokeFunction, context: LogContext = None):
+    async def invoke(self, external_tx: InvokeFunction):
         """Perform invoke according to specifications in `transaction`."""
         state = self.get_state()
         async with self.__get_transaction_handler(
-            external_tx=external_tx, context=context
+            external_tx=external_tx
         ) as tx_handler:
             tx_handler.internal_tx = InternalInvokeFunction.from_external(
                 external_tx, state.general_config

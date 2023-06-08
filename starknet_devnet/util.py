@@ -1,6 +1,8 @@
 """
 Utility functions used across the project.
 """
+import functools
+import json
 import logging
 import os
 import pprint
@@ -8,6 +10,7 @@ import sys
 from dataclasses import dataclass
 from typing import Dict, List, Set, Tuple
 
+from flask import request
 from starkware.starknet.business_logic.state.state import CachedState
 from starkware.starknet.definitions.error_codes import StarknetErrorCode
 from starkware.starknet.services.api.feeder_gateway.response_objects import (
@@ -268,58 +271,50 @@ suppress_feeder_gateway_client_logger = LogSuppressor("services.external_api.cli
 logger = logging.getLogger("gunicorn.error")
 
 
-class LogContext(dict):
-    """Context manager for logging transactions accumulating info while executing transaction"""
+def log_request(rpc=False):
+    "decorator to log endpoint request, response"
 
-    def get_context_name(self) -> str:
-        """Getting name of current context to put as first line in log entry"""
-        return getattr(self, "name", None) or "Transaction"
-
-    def set_context_name(self, name):
-        """Setting name of current context to put as first line in log entry"""
-        setattr(self, "name", name)
-        return self
-
-    def cust_fees_to_int(self):
-        """Cust to human readable type"""
-        for key in ["actual_fee", "max_fee"]:
-            if self.get(key):
-                try:
-                    self[key] = int(self[key], 16)
-                except (ValueError, TypeError):
-                    pass
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.cust_fees_to_int()
-        if exc_type:
-            if isinstance(exc_val, StarkException):
-                error_message = {
-                    "message": exc_val.message,
-                    "code": str(exc_val.code),
-                    "context": self,
-                }
+    def decorator(func):
+        @functools.wraps(func)
+        async def wrapper(*args, **kwargs):
+            if rpc:
+                logger.info(
+                    "%s RPC request: %s",
+                    func.__name__,
+                    pprint.pformat(kwargs),
+                )
             else:
-                error_message = {"message": str(exc_val), "context": self}
-            logger.error(
-                "%s failed: %s", self.get_context_name(), pprint.pformat(error_message)
-            )
-            return
-        logger.info("%s completed: %s", self.get_context_name(), pprint.pformat(self))
+                logger.info(
+                    "%s request: %s",
+                    func.__name__,
+                    pprint.pformat(json.loads(request.get_data())),
+                )
+            try:
+                resp = await func(*args, **kwargs)
+                if rpc:
+                    logger.info(
+                        "%s RPC response: %s", func.__name__, pprint.pformat(resp)
+                    )
+                else:
+                    logger.info(
+                        "%s response: %s",
+                        func.__name__,
+                        pprint.pformat(resp.get_json()),
+                    )
+                return resp
+            except Exception:
+                exc_type, exc_val, exc_tb = sys.exc_info()
+                if isinstance(exc_type, StarkException):
+                    error_message = {
+                        "message": exc_val.message,
+                        "code": str(exc_val.code),
+                        "trace": exc_tb,
+                    }
+                else:
+                    error_message = {"message": str(exc_val), "trace": exc_tb}
+                logger.error("%s request failed: %s", func.__name__, error_message)
+                raise
 
+        return wrapper
 
-def extract_transaction_info_to_log(transaction: dict) -> dict:
-    """Getting info about transaction for logging"""
-    keys_to_extract = [
-        "type",
-        "max_fee",
-        "nonce",
-        "version",
-        "sender_address",
-        "class_hash",
-    ]
-    return {
-        key: transaction.get(key) for key in keys_to_extract if transaction.get(key)
-    }
+    return decorator

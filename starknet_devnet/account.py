@@ -3,6 +3,7 @@ Account class and its predefined constants.
 """
 
 import sys
+
 from starkware.starknet.core.os.contract_address.contract_address import (
     calculate_contract_address_from_hash,
 )
@@ -61,9 +62,9 @@ class Account(PredeployedContractWrapper):
         await set_balance(starknet.state, self.address, self.initial_balance)
 
     def print(self):
-        print(f"Account:")
+        print("Account:")
         print(f"Address: {hex(self.address)}")
         print(f"Public key: {hex(self.public_key)}")
-        print(f"Private key: {hex(self.private_key)}\n")
+        print(f"Private key: {hex(self.private_key)}")
         print(f"Initial balance: {self.initial_balance} WEI")
         sys.stdout.flush()

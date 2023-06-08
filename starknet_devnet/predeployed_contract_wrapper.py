@@ -53,7 +53,10 @@ class PredeployedContractWrapper(ABC):
             contract_address=self.address,
         )
 
-        if (self.starknet_wrapper.config.verbose or not self.starknet_wrapper.config.hide_predeployed_contracts):
+        if (
+            self.starknet_wrapper.config.verbose
+            or not self.starknet_wrapper.config.hide_predeployed_contracts
+        ):
             self.print()
 
     def print(self):

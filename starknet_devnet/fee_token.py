@@ -1,6 +1,7 @@
 """
 Fee token and its predefined constants.
 """
+import pprint
 import sys
 
 from starkware.solidity.utils import load_nearby_contract
@@ -17,12 +18,7 @@ from starknet_devnet.account_util import get_execute_args
 from starknet_devnet.chargeable_account import ChargeableAccount
 from starknet_devnet.constants import SUPPORTED_TX_VERSION
 from starknet_devnet.predeployed_contract_wrapper import PredeployedContractWrapper
-from starknet_devnet.util import (
-    LogContext,
-    Uint256,
-    extract_transaction_info_to_log,
-    str_to_felt,
-)
+from starknet_devnet.util import Uint256, logger, str_to_felt
 
 
 class FeeToken(PredeployedContractWrapper):
@@ -128,7 +124,7 @@ class FeeToken(PredeployedContractWrapper):
         }
         return InvokeFunction.load(transaction_data)
 
-    async def mint(self, to_address: int, amount: int, lite: bool, context: LogContext):
+    async def mint(self, to_address: int, amount: int, lite: bool):
         """
         Mint `amount` tokens at address `to_address`.
         Returns the `tx_hash` (as hex str) if not `lite`; else returns `None`
@@ -137,22 +133,18 @@ class FeeToken(PredeployedContractWrapper):
 
         tx_hash = None
         transaction = await self.get_mint_transaction(to_address, amount_uint256)
-        context.update(extract_transaction_info_to_log(transaction.dump()))
+        logger.info(transaction)
         starknet: Starknet = self.starknet_wrapper.starknet
         if lite:
             internal_tx = InternalInvokeFunction.from_external(
                 transaction, starknet.state.general_config
             )
             execution_info = await starknet.state.execute_tx(internal_tx)
-            context.update(
-                {
-                    "transaction_hash": hex(internal_tx.hash_value),
-                    "actual_fee": execution_info.actual_fee,
-                    "events": execution_info.get_sorted_events(),
-                }
+            logger.info(
+                "transaction execution info: %s", pprint.pformat(execution_info.dump())
             )
         else:
-            _, tx_hash_int = await self.starknet_wrapper.invoke(transaction, context)
+            _, tx_hash_int = await self.starknet_wrapper.invoke(transaction)
             tx_hash = hex(tx_hash_int)
 
         return tx_hash

@@ -258,7 +258,7 @@ def parse_args(raw_args: List[str]):
         description="Run a local instance of Starknet Devnet"
     )
     parser.add_argument(
-        "-V",
+        "-v",
         "--version",
         help="Print the version",
         action="version",
@@ -266,7 +266,6 @@ def parse_args(raw_args: List[str]):
     )
     parser.add_argument(
         "--verbose",
-        "-v",
         action="store_true",
         help="Show more verbose logs",
     )

@@ -57,7 +57,6 @@ class GunicornServer(BaseApplication):
             {
                 "loggers": {
                     "gunicorn.error": {
-                        # Disable info messages like "Starting gunicorn"
                         "level": "INFO" if self.args.verbose else "WARNING",
                         "handlers": ["error_console"],
                         "propagate": False,

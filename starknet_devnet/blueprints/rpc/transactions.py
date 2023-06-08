@@ -20,6 +20,7 @@ from starknet_devnet.blueprints.rpc.structures.payloads import (
     make_declare,
     make_deploy_account,
     make_invoke_function,
+    rpc_fee_estimate,
     rpc_transaction,
 )
 from starknet_devnet.blueprints.rpc.structures.responses import (
@@ -36,11 +37,7 @@ from starknet_devnet.blueprints.rpc.utils import (
 )
 from starknet_devnet.constants import LEGACY_TX_VERSION
 from starknet_devnet.state import state
-from starknet_devnet.util import (
-    LogContext,
-    StarknetDevnetException,
-    extract_transaction_info_to_log,
-)
+from starknet_devnet.util import StarknetDevnetException, log_request
 
 
 @validate_schema("getTransactionByHash")
@@ -103,46 +100,43 @@ async def pending_transactions() -> List[RpcTransaction]:
 
 
 @validate_schema("addInvokeTransaction")
+@log_request(rpc=True)
 async def add_invoke_transaction(invoke_transaction: RpcBroadcastedInvokeTxn) -> dict:
     """
     Submit a new transaction to be added to the chain
     """
-    with LogContext().set_context_name("Invoke rpc transaction") as context:
-        context.update(extract_transaction_info_to_log(invoke_transaction))
-
-        _, transaction_hash = await state.starknet_wrapper.invoke(
-            external_tx=make_invoke_function(invoke_transaction), context=context
-        )
+    _, transaction_hash = await state.starknet_wrapper.invoke(
+        external_tx=make_invoke_function(invoke_transaction)
+    )
     return RpcInvokeTransactionResult(
         transaction_hash=rpc_felt(transaction_hash),
     )
 
 
 @validate_schema("addDeclareTransaction")
+@log_request(rpc=True)
 async def add_declare_transaction(
     declare_transaction: RpcBroadcastedDeclareTxn,
 ) -> dict:
     """
     Submit a new class declaration transaction
     """
-    with LogContext().set_context_name("Declare rpc transaction") as context:
-        context.update(extract_transaction_info_to_log(declare_transaction))
-        if int(declare_transaction["version"], 0) == LEGACY_TX_VERSION:
-            raise RpcError.from_spec_name("INVALID_CONTRACT_CLASS")
-        class_hash, transaction_hash = await state.starknet_wrapper.declare(
-            external_tx=make_declare(declare_transaction)
-        )
-        status_response = await state.starknet_wrapper.transactions.get_transaction_status(
-            hex(transaction_hash)
-        )
+    if int(declare_transaction["version"], 0) == LEGACY_TX_VERSION:
+        raise RpcError.from_spec_name("INVALID_CONTRACT_CLASS")
+    class_hash, transaction_hash = await state.starknet_wrapper.declare(
+        external_tx=make_declare(declare_transaction)
+    )
+    status_response = await state.starknet_wrapper.transactions.get_transaction_status(
+        hex(transaction_hash)
+    )
 
-        if status_response["tx_status"] == "REJECTED":
-            error_message = status_response["tx_failure_reason"].error_message
-            if (
-                "Class with hash" in error_message
-                and "is already declared" in error_message
-            ):
-                raise RpcError.from_spec_name("CLASS_ALREADY_DECLARED")
+    if status_response["tx_status"] == "REJECTED":
+        error_message = status_response["tx_failure_reason"].error_message
+        if (
+            "Class with hash" in error_message
+            and "is already declared" in error_message
+        ):
+            raise RpcError.from_spec_name("CLASS_ALREADY_DECLARED")
     return RpcDeclareTransactionResult(
         transaction_hash=rpc_felt(transaction_hash),
         class_hash=rpc_felt(class_hash),
@@ -150,31 +144,25 @@ async def add_declare_transaction(
 
 
 @validate_schema("addDeployAccountTransaction")
+@log_request(rpc=True)
 async def add_deploy_account_transaction(
     deploy_account_transaction: RpcBroadcastedDeployAccountTxn,
 ) -> dict:
     """
     Submit a new deploy account transaction
     """
-    with LogContext().set_context_name("Deploy account rpc transaction") as context:
-        context.update(extract_transaction_info_to_log(deploy_account_transaction))
-        (
-            contract_address,
-            transaction_hash,
-        ) = await state.starknet_wrapper.deploy_account(
-            external_tx=make_deploy_account(deploy_account_transaction), context=context
-        )
+    (contract_address, transaction_hash,) = await state.starknet_wrapper.deploy_account(
+        external_tx=make_deploy_account(deploy_account_transaction)
+    )
 
-        status_response = (
-            await state.starknet_wrapper.transactions.get_transaction_status(
-                hex(transaction_hash)
-            )
-        )
-        if (
-            status_response["tx_status"] == "REJECTED"
-            and "is not declared" in status_response["tx_failure_reason"].error_message
-        ):
-            raise RpcError.from_spec_name("CLASS_HASH_NOT_FOUND")
+    status_response = await state.starknet_wrapper.transactions.get_transaction_status(
+        hex(transaction_hash)
+    )
+    if (
+        status_response["tx_status"] == "REJECTED"
+        and "is not declared" in status_response["tx_failure_reason"].error_message
+    ):
+        raise RpcError.from_spec_name("CLASS_HASH_NOT_FOUND")
 
     return RpcDeployAccountTransactionResult(
         transaction_hash=rpc_felt(transaction_hash),
@@ -207,7 +195,7 @@ async def estimate_fee(request: List[RpcBroadcastedTxn], block_id: BlockId) -> l
     transactions = list(map(make_transaction, request))
 
     try:
-        await state.starknet_wrapper.calculate_traces_and_fees(
+        _, fee_response = await state.starknet_wrapper.calculate_traces_and_fees(
             transactions,
             skip_validate=False,
             block_id=block_id,
