@@ -58,11 +58,6 @@ def _fork_network(network_id: str):
     return NETWORK_TO_URL.get(network_id, network_id)
 
 
-def get_network_name_from_url(url: str) -> str:
-    url_to_network = {v: k for k, v in NETWORK_TO_URL.items()}
-    return url_to_network.get(url)
-
-
 def _fork_block(specifier: str):
     """Parse block specifier; allows int and 'latest'"""
     if specifier == "latest":

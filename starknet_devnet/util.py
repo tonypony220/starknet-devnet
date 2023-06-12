@@ -4,6 +4,8 @@ Utility functions used across the project.
 import logging
 import os
 import sys
+import asyncio
+from collections import OrderedDict
 from dataclasses import dataclass
 from typing import Dict, List, Set, Tuple
 
@@ -263,3 +265,68 @@ class LogSuppressor:
 # FeederGatewayClient is implemented in such a way that it logs and raises;
 # this suppresses the logging
 suppress_feeder_gateway_client_logger = LogSuppressor("services.external_api.client")
+
+
+class OrderedDictCache(OrderedDict):
+    def __init__(self, cache_id=None):
+        super().__init__()
+        self.hits = 0
+        self.misses = 0
+        self.cache_id = cache_id
+
+
+class CachedProxy:
+    """
+    LRU cache. Cache results of async calls of provided object
+    """
+
+    def __init__(self, proxied_object, maxsize=512, cache_id=None):
+        self._proxied = proxied_object
+        self.maxsize = maxsize  # number of elements in cache
+        self.cache = OrderedDictCache(cache_id=cache_id)
+
+    def __getattr__(self, attr):
+        # recursion protection when pickling
+        proxied_object = object.__getattribute__(self, '_proxied')
+        attr = getattr(proxied_object, attr, None)
+        # attr = object.__getattribute__(self._proxied, attr)
+        # print("getting ", attr, flush=True)
+        # attr = getattr(self._proxied, attr, None)
+        if attr is None:
+            raise AttributeError
+        if asyncio.iscoroutinefunction(attr):  # caching only coroutines
+            return self.async_cached_method(attr)
+        return attr
+
+    def async_cached_method(self, method):
+        cache = self.cache
+
+        async def wrapped_method(*args, **kwargs):
+            # key = hash_params(*args, **kwargs)
+            # key = (method.__name__, args, tuple(sorted(kwargs.items())))
+            key = (method.__name__, args)
+            if key in cache:
+                cache.move_to_end(key)
+                result = cache[key]
+                self.cache.hits += 1
+                print("------------ The method {} is return from cache. key={}".format(method, key))
+                return result
+            self.cache.misses += 1
+            result = await method(*args, **kwargs)
+            # print("The result was {}.".format(result))
+            while len(cache) >= self.maxsize:
+                # if cache.__sizeof__() > self.maxsize_in_bytes:
+                # if sys.getsizeof(cache) > self.maxsize_in_bytes:
+                # if total_size(cache) > self.maxsize_in_bytes:
+                # if len(cache) > self.maxsize_in_bytes:
+                # print("max", self.maxsize_in_bytes, flush=True)
+                # print("deleting len=", len(cache))
+                # print("cur", sys.getsizeof(cache), flush=True)
+                # print("cur", cache.__sizeof__(), flush=True)
+                cache.popitem(last=False)
+            # print("cur items", sys.getsizeof(cache.items()), flush=True)
+            # print("cur cache", cache.__sizeof__(), flush=True)
+            cache[key] = result
+            print( "++++++++++++ The method {} exec. key={}".format( method, key))
+            return result
+        return wrapped_method

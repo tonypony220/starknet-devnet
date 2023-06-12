@@ -1,12 +1,9 @@
 """
 Contains classes that provide the abstraction of L2 blockchain.
 """
-import asyncio
-from collections import OrderedDict
 import cloudpickle as pickle
 
 from services.external_api.client import BadRequest
-from starknet_devnet.devnet_config import get_network_name_from_url
 from starkware.starknet.definitions.error_codes import StarknetErrorCode
 from starkware.starknet.services.api.feeder_gateway.feeder_gateway_client import (
     FeederGatewayClient,
@@ -24,7 +21,7 @@ from starknet_devnet.util import (
     StarknetDevnetException,
     UndeclaredClassDevnetException,
     suppress_feeder_gateway_client_logger,
-)
+    CachedProxy, OrderedDictCache)
 
 
 class Origin:
@@ -250,92 +247,12 @@ class ForkedOrigin(Origin):
             raise
 
 
-class CachedProxy:
-    """
-    LRU cache results of calls provided object
-    """
-
-    def __init__(self, proxied_object, maxsize=512):
-        self._proxied = proxied_object
-        self.maxsize = maxsize  # number of elements in cache
-        self.cache = OrderedDict()
-        self.hits = 0
-        self.misses = 0
-        self.dump_filename = "cache_dump.pkl"
-
-    def __getattr__(self, attr):
-        # recursion protection when pickling
-        proxied_object = object.__getattribute__(self, '_proxied')
-        attr = getattr(proxied_object, attr, None)
-        # attr = object.__getattribute__(self._proxied, attr)
-        # print("getting ", attr, flush=True)
-        # attr = getattr(self._proxied, attr, None)
-        if attr is None:
-            raise AttributeError
-        if asyncio.iscoroutinefunction(attr):  # caching only coroutines
-            return self.async_cached_method(attr)
-        return attr
-
-    def async_cached_method(self, method):
-        cache = self.cache
-
-        async def wrapped_method(*args, **kwargs):
-            # key = hash_params(*args, **kwargs)
-            # key = (method.__name__, args, tuple(sorted(kwargs.items())))
-            key = (method.__name__, args)
-            if key in cache:
-                cache.move_to_end(key)
-                result = cache[key]
-                self.hits += 1
-                print("------------ The method {} is return from cache. key={}".format(method, key))
-                return result
-            self.misses += 1
-            result = await method(*args, **kwargs)
-            # print("The result was {}.".format(result))
-            while len(cache) >= self.maxsize:
-                # if cache.__sizeof__() > self.maxsize_in_bytes:
-                # if sys.getsizeof(cache) > self.maxsize_in_bytes:
-                # if total_size(cache) > self.maxsize_in_bytes:
-                # if len(cache) > self.maxsize_in_bytes:
-                # print("max", self.maxsize_in_bytes, flush=True)
-                # print("deleting len=", len(cache))
-                # print("cur", sys.getsizeof(cache), flush=True)
-                # print("cur", cache.__sizeof__(), flush=True)
-                cache.popitem(last=False)
-            # print("cur items", sys.getsizeof(cache.items()), flush=True)
-            # print("cur cache", cache.__sizeof__(), flush=True)
-            cache[key] = result
-            print( "++++++++++++ The method {} exec. key={}".format( method, key))
-            return result
-        return wrapped_method
-
-
-    def _load(self):
-        try:
-            with open(self.dump_filename, "rb") as file:
-                return pickle.load(file)
-        except FileNotFoundError:
-            return None
-
-    def try_load_from_dump(self):
-        loaded_cache = self._load()
-        if loaded_cache:
-            self.cache = loaded_cache
-
-    def dump(self):
-        with open(self.dump_filename, "w+b") as file:
-            pickle.dump(self.cache, file)
-        print("Cache dumped to ", self.dump_filename)
-        print(f"Current len: {len(self.cache)}")
-        print(f"Hits: {self.hits}")
-        print(f"Misses: {self.misses}")
-        # print(f"cache: ", self.cache)
-
 
 class CachedForkedOrigin(CachedProxy):
     """
     Caching wrapped over ForkedOrigin. Dumps cache
     """
+    DUMP_FILENAME = 'origin_cache.pkl'
 
     def __init__(
             self,
@@ -344,8 +261,30 @@ class CachedForkedOrigin(CachedProxy):
     ):
         origin = ForkedOrigin(feeder_gateway_client, last_block_number)
 
-        super().__init__(origin)
-        network_name = get_network_name_from_url(feeder_gateway_client.url)
-        self.dump_filename = f"cache_dump_{network_name}:{last_block_number}.pkl"
-        self.try_load_from_dump()
+        cache_id = feeder_gateway_client.url + str(last_block_number)
+        super().__init__(origin, cache_id=cache_id)
+        # network_name = get_network_name_from_url(feeder_gateway_client.url)
+        # self.dump_filename = f"cache_dump_{network_name}:{last_block_number}.pkl"
+        self.__try_load_cache_from_dump(cache_id)
 
+    @staticmethod
+    def load_cache() -> OrderedDictCache:
+        try:
+            with open(CachedForkedOrigin.DUMP_FILENAME, "rb") as file:
+                return pickle.load(file)
+        except FileNotFoundError:
+            return None
+
+    def __try_load_cache_from_dump(self, cache_id):
+        loaded_cache = self.__load()
+        if loaded_cache and loaded_cache.cache_id == cache_id:
+            self.cache = loaded_cache
+
+    def dump(self):
+        with open(self.DUMP_FILENAME, "w+b") as file:
+            pickle.dump(self.cache, file)
+        print("Cache dumped to ", self.dump_filename)
+        print(f"Current len: {len(self.cache)}")
+        print(f"Hits: {self.cache.hits}")
+        print(f"Misses: {self.cache.misses}")
+        # print(f"cache: ", self.cache)

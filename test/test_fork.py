@@ -2,11 +2,13 @@
 Test the forking feature.
 Relying on the fact that devnet doesn't support specifying which block to query
 """
+import os
 
 import pytest
 import requests
 
 from starknet_devnet.constants import DEFAULT_INITIAL_BALANCE
+from starknet_devnet.origin import CachedForkedOrigin
 
 from .account import declare_and_deploy_with_chargeable, get_nonce, invoke
 from .settings import APP_URL, HOST, bind_free_port
@@ -34,7 +36,7 @@ from .util import (
     call,
     devnet_in_background,
     mint,
-)
+    get_full_contract)
 
 ORIGIN_PORT, ORIGIN_URL = bind_free_port(HOST)
 FORK_PORT, FORK_URL = bind_free_port(HOST)
@@ -355,3 +357,66 @@ def test_fork_status_not_forked():
     assert resp.status_code == 200
     data = resp.json()
     assert data == {}
+
+
+
+@devnet_in_background("--port", ORIGIN_PORT, *PREDEPLOY_ACCOUNT_CLI_ARGS)
+def test_cache_of_forked_origin():
+    """Test cache of forked origin works, dumps on exit, and loads if forked network and block is the same"""
+    deploy_info = declare_and_deploy_with_chargeable(
+        contract=CONTRACT_PATH,
+        inputs=["10"],
+        gateway_url=ORIGIN_URL,
+    )
+    # fork
+    os.remove(CachedForkedOrigin.DUMP_FILENAME)
+    FORKING_DEVNET.start(
+        "--port", FORK_PORT, "--fork-network", ORIGIN_URL, "--accounts", "0"
+    )
+    for i in range(3):
+        full_contract_fork = get_full_contract(
+            contract_address=deploy_info["address"],
+            feeder_gateway_url=FORK_URL,
+        )
+    FORKING_DEVNET.stop()
+    cache = CachedForkedOrigin.load_cache()
+    assert cache, "Not dumped"
+    assert cache.hits == 2
+    assert cache.misses == 1
+
+    # test cache persist between launches of devnet
+    FORKING_DEVNET.start(
+        "--port", FORK_PORT, "--fork-network", ORIGIN_URL, "--accounts", "0"
+    )
+    full_contract_fork = get_full_contract(
+        contract_address=deploy_info["address"],
+        feeder_gateway_url=FORK_URL,
+    )
+    FORKING_DEVNET.stop()
+    cache = CachedForkedOrigin.load_cache()
+    assert cache, "Not dumped"
+    assert cache.hits == 3
+    assert cache.misses == 1
+
+    # testing that dump overwrites for different fork network
+    FORKING_DEVNET.start(
+        "--port", *TESTNET_FORK_PARAMS, "--fork-block", str(TESTNET_DEPLOYMENT_BLOCK)
+    )
+    full_contract_fork = get_full_contract(
+        contract_address=deploy_info["address"],
+        feeder_gateway_url=FORK_URL,
+    )
+    FORKING_DEVNET.stop()
+    cache = CachedForkedOrigin.load_cache()
+    assert cache, "Not dumped"
+    assert cache.hits == 0
+    assert cache.misses == 1
+
+
+    # resp = requests.get(f"{APP_URL}/fork_status")
+    # assert resp.status_code == 200
+    # data = resp.json()
+    # assert data.get("url") == ALPHA_GOERLI2_URL
+    # assert data.get("block") == TESTNET_DEPLOYMENT_BLOCK
+
+

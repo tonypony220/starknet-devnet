@@ -1,0 +1,6 @@
+ImportError while loading conftest '/devnet/test/conftest.py'.
+test/conftest.py:9: in <module>
+    from .shared import PREDEPLOY_ACCOUNT_CLI_ARGS
+test/shared.py:31: in <module>
+    with open(STARKNET_CLI_ACCOUNT_ABI_PATH, "w", encoding="utf-8") as oz_account_abi_file:
+E   FileNotFoundError: [Errno 2] No such file or directory: 'test/artifacts/contracts/cairo/starknet_cli_oz_account_abi.json'
