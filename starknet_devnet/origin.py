@@ -276,14 +276,14 @@ class CachedForkedOrigin(CachedProxy):
             return None
 
     def __try_load_cache_from_dump(self, cache_id):
-        loaded_cache = self.__load()
+        loaded_cache = self.load_cache()
         if loaded_cache and loaded_cache.cache_id == cache_id:
             self.cache = loaded_cache
 
     def dump(self):
         with open(self.DUMP_FILENAME, "w+b") as file:
             pickle.dump(self.cache, file)
-        print("Cache dumped to ", self.dump_filename)
+        print("Cache dumped to ", self.DUMP_FILENAME)
         print(f"Current len: {len(self.cache)}")
         print(f"Hits: {self.cache.hits}")
         print(f"Misses: {self.cache.misses}")

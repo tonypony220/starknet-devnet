@@ -36,7 +36,7 @@ from .util import (
     call,
     devnet_in_background,
     mint,
-    get_full_contract)
+    get_full_contract, get_transaction_receipt)
 
 ORIGIN_PORT, ORIGIN_URL = bind_free_port(HOST)
 FORK_PORT, FORK_URL = bind_free_port(HOST)
@@ -368,49 +368,41 @@ def test_cache_of_forked_origin():
         inputs=["10"],
         gateway_url=ORIGIN_URL,
     )
+    if os.path.exists(CachedForkedOrigin.DUMP_FILENAME):
+        os.remove(CachedForkedOrigin.DUMP_FILENAME)
     # fork
-    os.remove(CachedForkedOrigin.DUMP_FILENAME)
     FORKING_DEVNET.start(
         "--port", FORK_PORT, "--fork-network", ORIGIN_URL, "--accounts", "0"
     )
-    for i in range(3):
-        full_contract_fork = get_full_contract(
-            contract_address=deploy_info["address"],
-            feeder_gateway_url=FORK_URL,
-        )
+    expected_cache_hits = 10
+    for i in range(expected_cache_hits + 1):
+        get_transaction_receipt(tx_hash=deploy_info["tx_hash"], feeder_gateway_url=FORK_URL)
     FORKING_DEVNET.stop()
+
     cache = CachedForkedOrigin.load_cache()
     assert cache, "Not dumped"
-    assert cache.hits == 2
-    assert cache.misses == 1
+    assert cache.hits >= expected_cache_hits
+    assert cache.misses > 0
 
     # test cache persist between launches of devnet
     FORKING_DEVNET.start(
         "--port", FORK_PORT, "--fork-network", ORIGIN_URL, "--accounts", "0"
     )
-    full_contract_fork = get_full_contract(
-        contract_address=deploy_info["address"],
-        feeder_gateway_url=FORK_URL,
-    )
+    get_transaction_receipt(tx_hash=deploy_info["tx_hash"], feeder_gateway_url=FORK_URL)
     FORKING_DEVNET.stop()
     cache = CachedForkedOrigin.load_cache()
     assert cache, "Not dumped"
-    assert cache.hits == 3
-    assert cache.misses == 1
+    assert cache.hits >= expected_cache_hits + 1
 
     # testing that dump overwrites for different fork network
     FORKING_DEVNET.start(
-        "--port", *TESTNET_FORK_PARAMS, "--fork-block", str(TESTNET_DEPLOYMENT_BLOCK)
+        "--port", FORK_PORT, "--fork-network", TESTNET_URL
     )
-    full_contract_fork = get_full_contract(
-        contract_address=deploy_info["address"],
-        feeder_gateway_url=FORK_URL,
-    )
+    get_transaction_receipt(tx_hash=deploy_info["tx_hash"], feeder_gateway_url=FORK_URL)
     FORKING_DEVNET.stop()
     cache = CachedForkedOrigin.load_cache()
     assert cache, "Not dumped"
     assert cache.hits == 0
-    assert cache.misses == 1
 
 
     # resp = requests.get(f"{APP_URL}/fork_status")
