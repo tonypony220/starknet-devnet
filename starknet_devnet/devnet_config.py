@@ -23,7 +23,7 @@ from starkware.starknet.services.api.feeder_gateway.feeder_gateway_client import
     FeederGatewayClient,
 )
 
-from starknet_devnet.util import suppress_feeder_gateway_client_logger
+from starknet_devnet.util import suppress_feeder_gateway_client_logger, warn
 
 from . import __version__
 from .constants import (
@@ -76,7 +76,9 @@ def _fork_block(specifier: str):
 
 def _warn_if_used_deprecated_argument(arg: str):
     if arg == "--hide-predeployed-accounts":
-        print("Argument --hide-predeployed-accounts was deprecated, use --hide-predeployed-contracts instead")
+        print(
+            "Argument --hide-predeployed-accounts was deprecated, use --hide-predeployed-contracts instead"
+        )
     return True
 
 
@@ -216,6 +218,19 @@ class PositiveAction(argparse.Action):
         setattr(namespace, self.dest, value)
 
 
+class WarnIfDeprecatedArgumentAction(argparse.Action):
+    def __init__(self, nargs=0, **kw):
+        super().__init__(nargs=nargs, **kw)
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        if option_string == "--hide-predeployed-accounts":
+            warn(
+                "WARNING: Argument --hide-predeployed-accounts is deprecated\n",
+                file=sys.stderr,
+            )
+        setattr(namespace, self.dest, True)
+
+
 def _assert_valid_compiler(command: List[str]):
     """Assert user machine can compile with cairo 1"""
     check = subprocess.run(
@@ -335,7 +350,7 @@ def parse_args(raw_args: List[str]):
     parser.add_argument(
         "--hide-predeployed-contracts",
         "--hide-predeployed-accounts",  # for backwards compatibility
-        type=_warn_if_used_deprecated_argument,
+        action=WarnIfDeprecatedArgumentAction,
         help="Prevents from printing the predeployed contracts details",
     )
     parser.add_argument(

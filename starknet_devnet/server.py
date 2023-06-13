@@ -63,8 +63,8 @@ class GunicornServer(BaseApplication):
                         "qualname": "gunicorn.error",
                     },
                     "gunicorn.access": {
-                        "level": "INFO" 
-                        if self.args.verbose or not self.args.hide_logs 
+                        "level": "INFO"
+                        if self.args.verbose or not self.args.hide_logs
                         else "WARNING",
                         # Log access to stderr to maintain backward compatibility
                         "handlers": ["error_console"],
