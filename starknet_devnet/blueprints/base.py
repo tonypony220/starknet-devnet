@@ -1,7 +1,6 @@
 """
 Base routes
 """
-
 from flask import Blueprint, Response, jsonify, request
 from starkware.starkware_utils.error_handling import StarkErrorCode
 
@@ -198,6 +197,7 @@ async def get_fee_token():
 async def mint():
     """Mint token and transfer to the provided address"""
     request_json = request.json or {}
+
     address = hex_converter(request_json, "address")
     amount = extract_positive(request_json, "amount")
     is_lite = request_json.get("lite", False)
@@ -205,8 +205,8 @@ async def mint():
     tx_hash = await state.starknet_wrapper.fee_token.mint(
         to_address=address, amount=amount, lite=is_lite
     )
-    new_balance = await state.starknet_wrapper.fee_token.get_balance(address)
 
+    new_balance = await state.starknet_wrapper.fee_token.get_balance(address)
     return jsonify({"new_balance": new_balance, "unit": "wei", "tx_hash": tx_hash})
 
 

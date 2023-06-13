@@ -123,6 +123,7 @@ async def add_declare_transaction(
     """
     if int(declare_transaction["version"], 0) == LEGACY_TX_VERSION:
         raise RpcError.from_spec_name("INVALID_CONTRACT_CLASS")
+
     class_hash, transaction_hash = await state.starknet_wrapper.declare(
         external_tx=make_declare(declare_transaction)
     )
@@ -137,6 +138,7 @@ async def add_declare_transaction(
             and "is already declared" in error_message
         ):
             raise RpcError.from_spec_name("CLASS_ALREADY_DECLARED")
+
     return RpcDeclareTransactionResult(
         transaction_hash=rpc_felt(transaction_hash),
         class_hash=rpc_felt(class_hash),
@@ -208,4 +210,5 @@ async def estimate_fee(request: List[RpcBroadcastedTxn], block_id: BlockId) -> l
         if "is not deployed" in ex.message:
             raise RpcError.from_spec_name("CONTRACT_NOT_FOUND") from ex
         raise RpcError(code=-1, message=ex.message) from ex
+
     return rpc_fee_estimate(fee_response)

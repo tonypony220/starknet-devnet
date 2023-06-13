@@ -2,7 +2,6 @@
 Gateway routes
 """
 
-
 from flask import Blueprint, jsonify, request
 from starkware.starknet.definitions.error_codes import StarknetErrorCode
 from starkware.starknet.definitions.transaction_type import TransactionType
@@ -21,6 +20,7 @@ gateway = Blueprint("gateway", __name__, url_prefix="/gateway")
 @log_request()
 async def add_transaction():
     """Endpoint for accepting (state-changing) transactions."""
+
     transaction = validate_transaction(request.get_data())
     tx_type = transaction.tx_type
 
@@ -29,17 +29,11 @@ async def add_transaction():
     }
 
     if tx_type == TransactionType.DECLARE:
-        (
-            contract_class_hash,
-            transaction_hash,
-        ) = await state.starknet_wrapper.declare(transaction)
+        contract_class_hash, transaction_hash = await state.starknet_wrapper.declare(transaction)
         response_dict["class_hash"] = hex(contract_class_hash)
 
     elif tx_type == TransactionType.DEPLOY_ACCOUNT:
-        (
-            contract_address,
-            transaction_hash,
-        ) = await state.starknet_wrapper.deploy_account(transaction)
+        contract_address, transaction_hash = await state.starknet_wrapper.deploy_account(transaction)
         response_dict["address"] = fixed_length_hex(contract_address)
 
     elif tx_type == TransactionType.DEPLOY:
@@ -66,4 +60,5 @@ async def add_transaction():
     # after tx
     if state.dumper.dump_on == DumpOn.TRANSACTION:
         state.dumper.dump()
+
     return jsonify(response_dict)

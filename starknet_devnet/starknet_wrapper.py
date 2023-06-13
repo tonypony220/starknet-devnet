@@ -114,6 +114,7 @@ enable_pickling()
 
 DEFAULT_BLOCK_ID = LATEST_BLOCK_ID
 
+
 # pylint: disable=too-many-instance-attributes
 # pylint: disable=too-many-public-methods
 # pylint: disable=too-many-locals

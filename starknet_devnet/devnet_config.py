@@ -272,7 +272,7 @@ def parse_args(raw_args: List[str]):
     parser.add_argument(
         "--hide-logs",
         action="store_true",
-        help="Hide info logging",
+        help="Hide server access logging",
     )
     parser.add_argument(
         "--host",

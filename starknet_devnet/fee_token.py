@@ -144,6 +144,7 @@ class FeeToken(PredeployedContractWrapper):
                 "transaction execution info: %s", pprint.pformat(execution_info.dump())
             )
         else:
+            # execution info logs inside starknet_wrapper.invoke call
             _, tx_hash_int = await self.starknet_wrapper.invoke(transaction)
             tx_hash = hex(tx_hash_int)
 
