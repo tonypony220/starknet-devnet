@@ -51,7 +51,6 @@ def run_devnet_in_background(*args, stderr=None, stdout=None, env=None):
         "poetry",
         "run",
         "starknet-devnet",
-        "--verbose",
         "--host",
         HOST,
         "--port",

@@ -270,6 +270,11 @@ def parse_args(raw_args: List[str]):
         help="Show more verbose logs",
     )
     parser.add_argument(
+        "--hide-logs",
+        action="store_true",
+        help="Hide info logging",
+    )
+    parser.add_argument(
         "--host",
         help=f"Specify the address to listen at; defaults to {DEFAULT_HOST} "
         "(use the address the program outputs on start)",

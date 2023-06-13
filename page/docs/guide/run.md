@@ -12,7 +12,7 @@ usage: starknet-devnet [-h] [-v] [--verbose] [--host HOST] [--port PORT] [--load
                        [--hide-predeployed-contracts] [--start-time START_TIME] [--gas-price GAS_PRICE] [--allow-max-fee-zero]
                        [--timeout TIMEOUT] [--account-class ACCOUNT_CLASS] [--fork-network FORK_NETWORK] [--fork-block FORK_BLOCK]
                        [--fork-retries FORK_RETRIES] [--chain-id CHAIN_ID] [--disable-rpc-request-validation]
-                       [--disable-rpc-response-validation]
+                       [--disable-rpc-response-validation] [--hide-logs]
 
 Run a local instance of Starknet Devnet
 
@@ -59,6 +59,8 @@ optional arguments:
                         Specify the path to the manifest (Cargo.toml) of the Cairo 1.0 compiler to be used for contract recompilation; if omitted, the default x86-compatible compiler (from cairo-lang package) is used
   --sierra-compiler-path SIERRA_COMPILER_PATH
                         Specify the path to the binary executable of starknet-sierra-compile
+
+  --hide-logs           Hide access info logging
 ```
 
 You can run `starknet-devnet` in a separate shell, or you can run it in background with `starknet-devnet &`.
