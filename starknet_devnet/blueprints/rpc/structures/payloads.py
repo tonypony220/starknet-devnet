@@ -1,9 +1,12 @@
+# pylint: disable=too-many-lines
+
 """
 RPC payload structures
 """
 
 from __future__ import annotations
 
+from enum import Enum, auto
 from typing import Callable, Dict, List, Optional, Union
 
 from marshmallow.exceptions import MarshmallowError
@@ -27,6 +30,7 @@ from starkware.starknet.services.api.feeder_gateway.response_objects import (
     L1HandlerSpecificInfo,
     StarknetBlock,
     TransactionSpecificInfo,
+    TransactionTrace,
     TransactionType,
 )
 from starkware.starknet.services.api.gateway.transaction import (
@@ -619,6 +623,13 @@ class StructAbiEntry(TypedDict):
 AbiEntry = Union[FunctionAbiEntry, EventAbiEntry, StructAbiEntry]
 
 
+class SimulationFlag(Enum):
+    """Enum with flags for simulate transaction"""
+
+    SKIP_VALIDATE = auto()
+    SKIP_EXECUTE = auto()
+
+
 def function_abi_entry(abi_entry: AbiEntryType) -> FunctionAbiEntry:
     """
     Convert function gateway abi entry to rpc FunctionAbiEntry
@@ -944,3 +955,64 @@ def rpc_state_update(
         "state_diff": state_diff,
     }
     return rpc_state
+
+
+def rpc_map_traces(
+    traces: List[TransactionTrace], types: List[TransactionType]
+) -> List[Dict[str, Dict]]:
+    """
+    The purpose of this method is to map RPC trace responses based on different transaction types.
+    """
+    # traces number must be equal to types to properly map objects
+    assert len(traces) == len(types)
+
+    result = []
+    for i, trace in enumerate(traces):
+        trace_dict = trace.dump()
+
+        if types[i] == TransactionType.INVOKE_FUNCTION:
+            trace = rpc_invoke_txn_trace(trace_dict)
+        elif types[i] == TransactionType.DECLARE:
+            trace = rpc_declare_txn_trace(trace_dict)
+        elif types[i] == TransactionType.DEPLOY_ACCOUNT:
+            trace = rpc_deploy_account_txn_trace(trace_dict)
+        else:
+            raise RpcError(
+                code=-1, message=f"Transaction type '{types[i]}' is not supported."
+            )
+
+        result.append(trace)
+
+    return result
+
+
+def rpc_invoke_txn_trace(trace_dict: dict) -> Dict[str, Dict]:
+    """
+    Mapping for the execution trace of a invoke transaction.
+    """
+    return {
+        "validate_invocation": trace_dict.get("validate_invocation"),
+        "execute_invocation": trace_dict.get("function_invocation"),
+        "fee_transfer_invocation": trace_dict.get("fee_transfer_invocation"),
+    }
+
+
+def rpc_declare_txn_trace(trace_dict: dict) -> Dict[str, Dict]:
+    """
+    Mapping for the execution trace of a declare transaction.
+    """
+    return {
+        "validate_invocation": trace_dict.get("validate_invocation"),
+        "fee_transfer_invocation": trace_dict.get("fee_transfer_invocation"),
+    }
+
+
+def rpc_deploy_account_txn_trace(trace_dict: dict) -> Dict[str, Dict]:
+    """
+    Mapping for the execution trace of a deploy account transaction.
+    """
+    return {
+        "validate_invocation": trace_dict.get("validate_invocation"),
+        "constructor_invocation": trace_dict.get("function_invocation"),
+        "fee_transfer_invocation": trace_dict.get("fee_transfer_invocation"),
+    }
