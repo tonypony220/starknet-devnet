@@ -6,7 +6,7 @@ sidebar_position: 13
 
 ## Predeployed accounts
 
-Devnet predeploys `--accounts` with some `--initial-balance`. To hide the details of these accounts use `--hide-predeployed-contracts`. The accounts get charged for transactions according to the `--gas-price`. A `--seed` can be used to regenerate the same set of accounts. Read more about it in the [Run section](run.md).
+Devnet predeploys `--accounts` with some `--initial-balance`. To hide the details of these accounts use `--hide-predeployed-accounts`. The accounts get charged for transactions according to the `--gas-price`. A `--seed` can be used to regenerate the same set of accounts. Read more about it in the [Run section](run.md).
 
 To get the code of the account (currently OpenZeppelin [v0.5.1](https://github.com/OpenZeppelin/cairo-contracts/releases/tag/v0.5.1)), use one of the following:
 

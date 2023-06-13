@@ -55,7 +55,7 @@ class PredeployedContractWrapper(ABC):
 
         if (
             self.starknet_wrapper.config.verbose
-            or not self.starknet_wrapper.config.hide_predeployed_contracts
+            or not self.starknet_wrapper.config.hide_predeployed_accounts
         ):
             self.print()
 

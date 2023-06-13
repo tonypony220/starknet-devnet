@@ -327,9 +327,9 @@ def parse_args(raw_args: List[str]):
         help="Specify the seed for randomness of accounts to be predeployed",
     )
     parser.add_argument(
-        "--hide-predeployed-contracts",
+        "--hide-predeployed-accounts",
         action="store_true",
-        help="Prevents from printing the predeployed contracts details",
+        help="Prevents from printing the predeployed accounts details",
     )
     parser.add_argument(
         "--start-time",
@@ -447,7 +447,7 @@ class DevnetConfig:
         self.lite_mode = self.args.lite_mode
         self.blocks_on_demand = self.args.blocks_on_demand
         self.account_class = self.args.account_class
-        self.hide_predeployed_contracts = self.args.hide_predeployed_contracts
+        self.hide_predeployed_accounts = self.args.hide_predeployed_accounts
         self.fork_network = self.args.fork_network
         self.fork_block = self.args.fork_block
         self.chain_id = self.args.chain_id
