@@ -40,7 +40,7 @@ class Accounts:
             await account.deploy()
         if self.starknet_wrapper.config.accounts and (
             self.starknet_wrapper.config.verbose
-            or not self.starknet_wrapper.config.hide_predeployed_accounts
+            or not self.starknet_wrapper.config.hide_predeployed_contracts
         ):
             self.__print()
 
