@@ -219,6 +219,9 @@ class PositiveAction(argparse.Action):
 
 
 class WarnIfDeprecatedArgumentAction(argparse.Action):
+    """
+    Action to warn if user uses old flag;
+    """
     def __init__(self, nargs=0, **kw):
         super().__init__(nargs=nargs, **kw)
 
