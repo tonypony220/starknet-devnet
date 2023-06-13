@@ -17,10 +17,12 @@ from starknet_devnet.blueprints.rpc.structures.payloads import (
     RpcBroadcastedInvokeTxn,
     RpcBroadcastedTxn,
     RpcTransaction,
+    SimulationFlag,
     make_declare,
     make_deploy_account,
     make_invoke_function,
     rpc_fee_estimate,
+    rpc_map_traces,
     rpc_transaction,
 )
 from starknet_devnet.blueprints.rpc.structures.responses import (
@@ -198,7 +200,7 @@ async def estimate_fee(request: List[RpcBroadcastedTxn], block_id: BlockId) -> l
     transactions = list(map(make_transaction, request))
 
     try:
-        _, fee_response = await state.starknet_wrapper.calculate_traces_and_fees(
+        _, fee_response, _ = await state.starknet_wrapper.calculate_traces_and_fees(
             transactions,
             skip_validate=False,
             block_id=block_id,
@@ -213,3 +215,50 @@ async def estimate_fee(request: List[RpcBroadcastedTxn], block_id: BlockId) -> l
         raise RpcError(code=-1, message=ex.message) from ex
 
     return rpc_fee_estimate(fee_response)
+
+
+@validate_schema("simulateTransaction")
+async def simulate_transaction(
+    block_id: BlockId,
+    transaction: List[RpcTransaction],
+    simulation_flags: List[SimulationFlag],
+) -> list:
+    """
+    Simulate transactions.
+    SKIP_EXECUTE SimulationFlag is not supported.
+    """
+    await assert_block_id_is_valid(block_id)
+    transactions = list(map(make_transaction, transaction))
+    skip_validate = SimulationFlag.SKIP_VALIDATE.name in simulation_flags
+    skip_execute = SimulationFlag.SKIP_EXECUTE.name in simulation_flags
+    simulated_transactions = []
+
+    if skip_execute:
+        raise RpcError(code=-1, message="SKIP_EXECUTE flag is not supported")
+
+    try:
+        (
+            traces,
+            fee,
+            transaction_types,
+        ) = await state.starknet_wrapper.calculate_traces_and_fees(
+            transactions,
+            skip_validate=skip_validate,
+            block_id=block_id,
+        )
+        simulated_transactions.append(
+            {
+                "transaction_trace": rpc_map_traces(traces, transaction_types),
+                "fee_estimation": rpc_fee_estimate(fee),
+            }
+        )
+    except StarkException as ex:
+        if "Entry point" in ex.message and "not found" in ex.message:
+            raise RpcError.from_spec_name("CONTRACT_ERROR") from ex
+        if "While handling calldata" in ex.message:
+            raise RpcError.from_spec_name("CONTRACT_ERROR") from ex
+        if "is not deployed" in ex.message:
+            raise RpcError.from_spec_name("CONTRACT_NOT_FOUND") from ex
+        raise RpcError(code=-1, message=ex.message) from ex
+
+    return simulated_transactions
