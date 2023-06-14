@@ -36,7 +36,7 @@ optional arguments:
                         Specify the initial balance of accounts to be predeployed; defaults to 1e+21
   --seed SEED           Specify the seed for randomness of accounts to be predeployed
   --hide-predeployed-contracts, --hide-predeployed-accounts
-                        Prevents from printing the predeployed accounts details. Argument --hide-predeployed-accounts is deprecated 
+                        Prevents from printing the predeployed contracts details. Argument --hide-predeployed-accounts is deprecated 
   --start-time START_TIME
                         Specify the start time of the genesis block in Unix time seconds
   --gas-price GAS_PRICE, -g GAS_PRICE

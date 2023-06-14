@@ -221,7 +221,7 @@ class WarnIfDeprecatedArgumentAction(argparse.Action):
     def __call__(self, parser, namespace, values, option_string=None):
         if option_string == "--hide-predeployed-accounts":
             warn(
-                "WARNING: Argument --hide-predeployed-accounts is deprecated",
+                "WARNING: Argument --hide-predeployed-accounts is deprecated; applying --hide-predeployed-contracts instead",
                 file=sys.stderr,
             )
         setattr(namespace, self.dest, True)
@@ -347,7 +347,7 @@ def parse_args(raw_args: List[str]):
         "--hide-predeployed-contracts",
         "--hide-predeployed-accounts",  # for backwards compatibility
         action=WarnIfDeprecatedArgumentAction,
-        help="Prevents from printing the predeployed contracts details",
+        help="Prevents from printing the predeployed contracts details. Argument --hide-predeployed-accounts is deprecated",
     )
     parser.add_argument(
         "--start-time",
