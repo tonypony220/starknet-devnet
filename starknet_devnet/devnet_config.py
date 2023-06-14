@@ -74,14 +74,6 @@ def _fork_block(specifier: str):
     return parsed
 
 
-def _warn_if_used_deprecated_argument(arg: str):
-    if arg == "--hide-predeployed-accounts":
-        print(
-            "Argument --hide-predeployed-accounts was deprecated, use --hide-predeployed-contracts instead"
-        )
-    return True
-
-
 def _chain_id(chain_id: str):
     """Parse chain id.'"""
     try:
@@ -228,7 +220,7 @@ class WarnIfDeprecatedArgumentAction(argparse.Action):
     def __call__(self, parser, namespace, values, option_string=None):
         if option_string == "--hide-predeployed-accounts":
             warn(
-                "WARNING: Argument --hide-predeployed-accounts is deprecated\n",
+                "WARNING: Argument --hide-predeployed-accounts is deprecated",
                 file=sys.stderr,
             )
         setattr(namespace, self.dest, True)
@@ -291,7 +283,7 @@ def parse_args(raw_args: List[str]):
     parser.add_argument(
         "--verbose",
         action="store_true",
-        help="Show more verbose logs",
+        help="Show more verbose output. Has higher priority than --hide-logs and --hide-predeployed-contracts",
     )
     parser.add_argument(
         "--hide-logs",

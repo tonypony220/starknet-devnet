@@ -19,7 +19,7 @@ Run a local instance of Starknet Devnet
 optional arguments:
   -h, --help            show this help message and exit
   -v, --version         Print the version
-  --verbose             Show more verbose output. Have higher priority than --hide-logs and --hide-predeployed-contracts
+  --verbose             Show more verbose output. Has higher priority than --hide-logs and --hide-predeployed-contracts
   --host HOST           Specify the address to listen at; defaults to 127.0.0.1 (use the address the program outputs on start)
   --port PORT, -p PORT  Specify the port to listen at; defaults to 5050
   --load-path LOAD_PATH
