@@ -1,11 +1,8 @@
 """
 Account that is charged with a fee when nobody else can be charged.
 """
-import sys
 
 from starknet_devnet.account import Account
-
-from .util import warn
 
 
 class ChargeableAccount(Account):
@@ -28,15 +25,4 @@ class ChargeableAccount(Account):
         )
 
     def print(self):
-        print("")
-        print("Predeployed chargeable account")
-        print(f"Address: {hex(self.address)}")
-        print(f"Public key: {hex(self.public_key)}")
-        print(f"Private key: {hex(self.private_key)}")
-        print(f"Initial balance of chargeable account: {self.initial_balance} WEI")
-        warn(
-            "WARNING: Use these accounts and their keys ONLY for local testing. "
-            "DO NOT use them on mainnet or other live networks because you will LOSE FUNDS.\n",
-            file=sys.stderr,
-        )
-        sys.stdout.flush()
+        pass

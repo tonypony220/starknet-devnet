@@ -271,6 +271,21 @@ suppress_feeder_gateway_client_logger = LogSuppressor("services.external_api.cli
 logger = logging.getLogger("gunicorn.error")
 
 
+def extract_transaction_info_to_log(transaction: dict) -> dict:
+    """Getting info about transaction for logging"""
+    keys_to_exclude = [
+        "contract_class",  # mainly unreadable data
+    ]
+    to_log = {}
+    for key, val in transaction.items():
+        if key not in keys_to_exclude:
+            if isinstance(val, dict):
+                val = extract_transaction_info_to_log(val)
+            to_log[key] = val
+
+    return to_log
+
+
 def log_request(rpc=False):
     "decorator to log endpoint request, response"
 
@@ -281,13 +296,15 @@ def log_request(rpc=False):
                 logger.info(
                     "%s RPC request: %s",
                     func.__name__,
-                    pprint.pformat(kwargs),
+                    pprint.pformat(extract_transaction_info_to_log(kwargs)),
                 )
             else:
                 logger.info(
                     "%s request: %s",
                     func.__name__,
-                    pprint.pformat(json.loads(request.get_data())),
+                    pprint.pformat(
+                        extract_transaction_info_to_log(json.loads(request.get_data()))
+                    ),
                 )
             try:
                 resp = await func(*args, **kwargs)

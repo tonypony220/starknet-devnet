@@ -214,6 +214,7 @@ class WarnIfDeprecatedArgumentAction(argparse.Action):
     """
     Action to warn if user uses old flag;
     """
+
     def __init__(self, nargs=0, **kw):
         super().__init__(nargs=nargs, **kw)
 
@@ -283,10 +284,10 @@ def parse_args(raw_args: List[str]):
     parser.add_argument(
         "--verbose",
         action="store_true",
-        help="Show more verbose output. Has higher priority than --hide-logs and --hide-predeployed-contracts",
+        help="Show more verbose output. Has higher priority than --hide-server-logs and --hide-predeployed-contracts",
     )
     parser.add_argument(
-        "--hide-logs",
+        "--hide-server-logs",
         action="store_true",
         help="Hide server access logging",
     )

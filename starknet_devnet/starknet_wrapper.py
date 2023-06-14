@@ -954,8 +954,8 @@ class StarknetWrapper:
         state = self.get_state().state
         state.compiled_classes[STARKNET_CLI_ACCOUNT_CLASS_HASH] = oz_account_class
         if self.config.verbose or not self.config.hide_predeployed_contracts:
-            print("Predeclared starknet cli account: ", flush=True)
-            print(f"Class hash: {STARKNET_CLI_ACCOUNT_CLASS_HASH}\n", flush=True)
+            print("Predeclared STARKNET CLI account: ", flush=True)
+            print(f"Class hash: {hex(STARKNET_CLI_ACCOUNT_CLASS_HASH)}\n", flush=True)
 
     async def __deploy_chargeable_account(self):
         if await self.is_deployed(ChargeableAccount.ADDRESS):
